@@ -1,98 +1,452 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import {
+  client,
+  COMPLETITIONS_TABLE_ID,
+  DATABASE_ID,
+  databases,
+  HABITS_TABLE_ID,
+  RealTimeResponse,
+} from "@/lib/appwrite";
+import { useAuth } from "@/lib/auth-context";
+import { Habit, HabitCompletion } from "@/types/database.type";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ID, Query } from "react-native-appwrite";
+import { Swipeable } from "react-native-gesture-handler";
+import { Button, Surface, Text } from "react-native-paper";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function Index() {
+  const { signOut, user } = useAuth();
+  const [habits, setHabits] = useState<Habit[]>();
+  const [completedHabits, setCompletedHabits] = useState<string[]>();
+  const [focusedHabitButton, setFocusedHabitButton] = useState<
+    "all" | "active" | "completed"
+  >("all");
+  const router = useRouter();
 
-export default function HomeScreen() {
+  // use a useRef so when an action is performed, it reflects automatically rather than waiting for another
+  // render to reflect the changes like a useState
+  const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
+
+  useEffect(() => {
+    if (user) {
+      // let the subscription refresh the content when habits table is updated: create, update, delete
+      const habitsChannel = `databases.${DATABASE_ID}.collections.${HABITS_TABLE_ID}.documents`;
+      const habitsSubscription = client.subscribe(
+        habitsChannel,
+        (response: RealTimeResponse) => {
+          if (
+            response.events.includes(
+              "databases.*.collections.*.documents.*.create"
+            )
+          ) {
+            fetchHabits();
+          } else if (
+            response.events.includes(
+              "databases.*.collections.*.documents.*.update"
+            )
+          ) {
+            fetchHabits();
+          } else if (
+            response.events.includes(
+              "databases.*.collections.*.documents.*.delete"
+            )
+          ) {
+            fetchHabits();
+          }
+        }
+      );
+
+      const completionsChannel = `databases.${DATABASE_ID}.collections.${COMPLETITIONS_TABLE_ID}.documents`;
+      const completionsSubscription = client.subscribe(
+        completionsChannel,
+        (response: RealTimeResponse) => {
+          if (
+            response.events.includes(
+              "databases.*.collections.*.documents.*.create"
+            )
+          ) {
+            fetchCompletitions();
+          }
+        }
+      );
+
+      fetchHabits();
+      fetchCompletitions();
+
+      return () => {
+        habitsSubscription();
+        completionsSubscription();
+      };
+    }
+  }, [user]);
+
+  const fetchHabits = async () => {
+    try {
+      // fetch all the docs of the collection
+      const response = await databases.listDocuments<Habit>(
+        DATABASE_ID,
+        HABITS_TABLE_ID,
+        [Query.equal("user_id", user?.$id ?? "")]
+      );
+      // console.log(response.documents);
+      setHabits(response.documents as Habit[]);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const fetchCompletitions = async () => {
+    try {
+      // setting today to 0:00 time of day
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      // fetch all the docs of the collection
+      const response = await databases.listDocuments<HabitCompletion>(
+        DATABASE_ID,
+        COMPLETITIONS_TABLE_ID,
+        [
+          Query.equal("user_id", user?.$id ?? ""),
+          Query.greaterThanEqual("completed_at", today.toISOString()),
+        ]
+      );
+      // console.log(response.documents);
+      const completions = response.documents as HabitCompletion[];
+      setCompletedHabits(completions?.map((h) => h.habit_id));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const isHabitCompleted = (habitId: string) => {
+    return completedHabits?.includes(habitId);
+  };
+
+  const renderLeftAction = () => (
+    <View style={styles.swipeActionLeft}>
+      <MaterialCommunityIcons
+        name="check-circle-outline"
+        size={32}
+        color={"#fff"}
+      />
+    </View>
+  );
+
+  const renderRightAction = () => (
+    <View style={styles.swipeActionRight}>
+      <MaterialCommunityIcons
+        name="trash-can-outline"
+        size={32}
+        color={"#fff"}
+      />
+    </View>
+  );
+
+  const handleDeleteHabit = async (id: string) => {
+    try {
+      await databases.deleteDocument(DATABASE_ID, HABITS_TABLE_ID, id);
+    } catch (error) {
+      console.error(error);
+    }
+    console.log("deleted habit");
+  };
+
+  const handleCompleteHabit = async (id: string) => {
+    // check if user exists, if habit has been completed today already
+    if (!user || completedHabits?.includes(id)) return;
+    try {
+      const currentDate = new Date().toISOString();
+      // must pass in a unique id since you are creating a new entry to completitions
+      await databases.createDocument(
+        DATABASE_ID,
+        COMPLETITIONS_TABLE_ID,
+        ID.unique(),
+        {
+          habit_id: id,
+          user_id: user.$id,
+          completed_at: currentDate,
+        }
+      );
+      console.log("passed creation");
+      // find the habit that is needed to complete and update
+      const habit = habits?.find((h) => h.$id === id);
+      if (!habit) return;
+      await databases.updateDocument(DATABASE_ID, HABITS_TABLE_ID, id, {
+        streak_count: habit.streak_count + 1,
+        last_completed: currentDate,
+      });
+      console.log("completed habit");
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const filteredHabits = habits?.filter((habit) => {
+    const completed = isHabitCompleted(habit.$id);
+
+    if (focusedHabitButton === "all") return true;
+    if (focusedHabitButton === "active") return !completed;
+    if (focusedHabitButton === "completed") return completed;
+
+    return true;
+  });
+
+  // const showAllHabits;
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title} variant="headlineSmall">
+          Today's Habits
+        </Text>
+        <Button
+          labelStyle={styles.signOutBtn}
+          mode="text"
+          onPress={signOut}
+          icon={"logout"}
+        >
+          Sign Out
+        </Button>
+      </View>
+      <View style={styles.habitButtons}>
+        <Button
+          style={styles.habitButton}
+          labelStyle={styles.habitButtonLabel}
+          mode={focusedHabitButton === "all" ? "contained-tonal" : "elevated"}
+          onPress={() => setFocusedHabitButton("all")}
+        >
+          All
+        </Button>
+        <Button
+          style={styles.habitButton}
+          labelStyle={styles.habitButtonLabel}
+          mode={
+            focusedHabitButton === "active" ? "contained-tonal" : "elevated"
+          }
+          onPress={() => setFocusedHabitButton("active")}
+        >
+          Active
+        </Button>
+        <Button
+          style={styles.habitButton}
+          labelStyle={styles.habitButtonLabel}
+          mode={
+            focusedHabitButton === "completed" ? "contained-tonal" : "elevated"
+          }
+          onPress={() => setFocusedHabitButton("completed")}
+        >
+          Completed
+        </Button>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {habits?.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              No Habits yet. Add your first Habit!
+            </Text>
+          </View>
+        ) : (
+          filteredHabits?.map((habit, key) => (
+            <Swipeable
+              ref={(ref) => {
+                swipeableRefs.current[habit.$id] = ref;
+              }}
+              key={key}
+              overshootLeft={false}
+              overshootRight={false}
+              // render how the card is going to look when swiping
+              // functions handle this
+              renderLeftActions={renderLeftAction}
+              renderRightActions={renderRightAction}
+              onSwipeableOpen={(direction) => {
+                if (direction === "right") {
+                  // pass in the habit id so we know which habit
+                  handleDeleteHabit(habit.$id);
+                } else if (direction === "left") {
+                  handleCompleteHabit(habit.$id);
+                }
+
+                // close the current habit that was swiped
+                swipeableRefs.current[habit.$id]?.close();
+              }}
+            >
+              <Pressable
+                onPress={() => router.push(`/habit-details/${habit.$id}`)}
+                // style={{
+                //   backgroundColor: isHabitCompleted(habit.$id)
+                //     ? styles.completedCard.backgroundColor
+                //     : styles.card.backgroundColor,
+                //   borderRadius: 18,
+                // }}
+              >
+                <Surface
+                  style={[
+                    styles.card,
+                    isHabitCompleted(habit.$id) && styles.completedCard,
+                  ]}
+                  elevation={0}
+                >
+                  <View key={habit.$id} style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>{habit.title}</Text>
+                    <Text style={styles.cardDescription}>
+                      {habit.description}
+                    </Text>
+                    <View style={styles.cardFooter}>
+                      <View style={styles.cardStreak}>
+                        <MaterialCommunityIcons
+                          name="fire"
+                          size={18}
+                          color={"#ff9800"}
+                        />
+                        <Text style={styles.streakText}>
+                          {habit.streak_count} day streak
+                        </Text>
+                      </View>
+                      <View style={styles.cardFreq}>
+                        <Text style={styles.freqText}>
+                          {habit.frequency.charAt(0).toUpperCase() +
+                            habit.frequency.slice(1)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </Surface>
+              </Pressable>
+            </Swipeable>
+          ))
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: "f5f5f5",
+    // justifyContent: "center",
+    // alignItems: "center",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 5,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  habitButtons: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  habitButton: {
+    marginRight: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  habitButtonLabel: {
+    fontSize: 12,
+    paddingVertical: 0,
+    // paddingHorizontal: 4,
+    fontWeight: "bold",
+  },
+  title: {
+    fontWeight: "bold",
+  },
+  signOutBtn: {
+    fontWeight: "bold",
+  },
+  card: {
+    marginBottom: 18,
+    borderRadius: 18,
+    backgroundColor: "#ece0f3",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  completedCard: {
+    opacity: 0.7,
+    backgroundColor: "#cac8cc",
+  },
+  cardContent: {
+    padding: 20,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+    color: "#22223b",
+  },
+  cardDescription: {
+    fontSize: 15,
+    marginBottom: 16,
+    color: "#6c6c80",
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cardStreak: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff3e0",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  streakText: {
+    marginLeft: 6,
+    color: "#ff9800",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  cardFreq: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ede7f6",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  freqText: {
+    color: "#7c4dff",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyStateText: {
+    color: "#666666",
+  },
+  swipeActionLeft: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "flex-start",
+    backgroundColor: "#4caf50",
+    borderRadius: 18,
+    marginBottom: 18,
+    marginTop: 2,
+    paddingLeft: 16,
+  },
+  swipeActionRight: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "flex-end",
+    backgroundColor: "#e53936",
+    borderRadius: 18,
+    marginBottom: 18,
+    marginTop: 2,
+    paddingRight: 16,
   },
 });
