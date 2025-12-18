@@ -64,9 +64,12 @@ export default function AddHabitScreen() {
           onChangeText={setTitle}
         />
         <TextInput
-          style={styles.habit_input}
+          style={styles.habit_description_input}
           label="Description"
           mode="outlined"
+          multiline={true}
+          numberOfLines={5}
+          contentStyle={{ paddingTop: 10 }}
           onChangeText={setDescritipion}
         />
         <SegmentedButtons
@@ -106,6 +109,11 @@ const styles = StyleSheet.create({
   },
   habit_input: {
     marginBottom: 14,
+  },
+  habit_description_input: {
+    marginBottom: 14,
+    height: 150,
+    textAlignVertical: "Top",
   },
   seg_buttons: {
     marginBottom: 14,
