@@ -1,3 +1,4 @@
+import CustomMenu from "@/components/CustomMenu";
 import {
   client,
   DATABASE_ID,
@@ -14,14 +15,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { Alert, Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { ID } from "react-native-appwrite";
 import { ScrollView } from "react-native-gesture-handler";
-import {
-  Button,
-  Menu,
-  Surface,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { Button, Surface, Text, TextInput, useTheme } from "react-native-paper";
 
 // this page will provide extra details about the task, along with notes of the task
 // also provide the user with options to delete or renew the task or edit task
@@ -42,16 +36,18 @@ export default function HabitDetailsScreen() {
   const [frequency, setFrequency] = useState<Frequency>("daily");
 
   const [visibleHabitMenuId, setVisibleHabitMenuId] = useState(false);
-  const [visibleNoteMenuId, setVisibleNoteMenuId] = useState<boolean | null>(
-    null
-  );
+  const [visibleNoteMenuId, setVisibleNoteMenuId] = useState(false);
 
   const openHabitMenu = () => setVisibleHabitMenuId(true);
   const closeHabitMenu = () => setVisibleHabitMenuId(false);
   const openNoteMenu = () => setVisibleNoteMenuId(true);
-  const closeNoteMenu = () => setVisibleNoteMenuId(null);
+  const closeNoteMenu = () => setVisibleNoteMenuId(false);
+
+  const [habitMenuOpen, setHabitMenuOpen] = useState(false);
+  const [noteMenuOpen, setNoteMenuOpen] = useState(false);
 
   const toggleHabitMenu = () => setVisibleHabitMenuId(!visibleHabitMenuId);
+  const toggleNoteMenu = () => setVisibleNoteMenuId(!visibleNoteMenuId);
 
   const [dateTime, setDateTime] = useState<string[]>([
     "Weekday",
@@ -236,38 +232,6 @@ export default function HabitDetailsScreen() {
     }
   };
 
-  // const displayNote = (note: Note) => {
-  //   // add more logic to option button press, add edit and delete functionality
-  //   // Inside your main function component
-  //   const [visibleMenuId, setVisibleMenuId] = useState<string | null>(null);
-
-  //   const openMenu = (id: string) => setVisibleMenuId(id);
-  //   const closeMenu = () => setVisibleMenuId(null);
-  //   const handleNoteOptions = () => {
-  //     // Alert.alert("Note Options", `Settings for note: ${note.note_id}`);
-  //     return <View style={styles.noteOptionsBox}></View>;
-  //   };
-
-  //   return (
-  //     <View>
-  //       <Text style={styles.noteDate}>{note.last_updated}</Text>
-  //       <Surface style={styles.noteCard} elevation={0}>
-  //         <View style={styles.noteContent}>
-  //           <TouchableOpacity
-  //             onPress={handleNoteOptions}
-  //             style={styles.optionsButton}
-  //           >
-  //             <SimpleLineIcons name="options" size={18} color="#6c6c80" />
-  //           </TouchableOpacity>
-
-  //           <Text style={styles.noteDescription}>{note.description}</Text>
-  //           <Text style={styles.noteFooter}>{note.user_id_updated}</Text>
-  //         </View>
-  //       </Surface>
-  //     </View>
-  //   );
-  // };
-
   const displayNote = (note: Note) => {
     return (
       // <View key={note.note_id}>
@@ -276,36 +240,32 @@ export default function HabitDetailsScreen() {
         <Surface style={styles.noteCard} elevation={0}>
           <View style={styles.noteContent}>
             {/* ✅ Wrap the button in a Menu */}
-            <Menu
-              visible={visibleNoteMenuId === true}
-              onDismiss={closeNoteMenu}
-              anchor={
-                <TouchableOpacity
-                  onPress={() => openNoteMenu()}
-                  style={styles.optionsButton}
-                >
-                  <SimpleLineIcons name="options" size={18} color="#6c6c80" />
-                </TouchableOpacity>
-              }
-            >
-              <Menu.Item
-                onPress={() => {
-                  console.log("Edit pressed");
-                  closeNoteMenu();
-                }}
-                title="Edit"
-                leadingIcon="pencil"
+            <View style={styles.menuAnchorContainer}>
+              <CustomMenu
+                visible={noteMenuOpen}
+                onDismiss={() => setNoteMenuOpen(false)}
+                anchor={
+                  <TouchableOpacity
+                    onPress={() => setNoteMenuOpen(true)}
+                    style={styles.noteOptionsButton}
+                  >
+                    <SimpleLineIcons name="options" size={18} color="#6c6c80" />
+                  </TouchableOpacity>
+                }
+                items={[
+                  { label: "Edit", onPress: () => console.log("edit") },
+                  {
+                    label: "Copy",
+                    onPress: () => console.log("copy pressed"),
+                  },
+                  {
+                    label: "Delete",
+                    danger: true,
+                    onPress: () => console.log("note delete pressed"),
+                  },
+                ]}
               />
-              <Menu.Item
-                onPress={() => {
-                  console.log("Delete pressed");
-                  closeNoteMenu();
-                }}
-                title="Delete"
-                titleStyle={{ color: "red" }}
-                leadingIcon="trash-can"
-              />
-            </Menu>
+            </View>
 
             <Text style={styles.noteDescription}>{note.description}</Text>
             <Text style={styles.noteFooter}>{note.user_id_updated}</Text>
@@ -328,36 +288,26 @@ export default function HabitDetailsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.segment}>
           <View style={styles.menuAnchorContainer}>
-            <Menu
-              visible={visibleHabitMenuId}
-              onDismiss={closeHabitMenu}
+            <CustomMenu
+              visible={habitMenuOpen}
+              onDismiss={() => setHabitMenuOpen(false)}
               anchor={
                 <TouchableOpacity
-                  onPress={openHabitMenu}
+                  onPress={() => setHabitMenuOpen(true)}
                   style={styles.optionsButton}
                 >
                   <SimpleLineIcons name="options" size={24} color="#6c6c80" />
                 </TouchableOpacity>
               }
-            >
-              <Menu.Item
-                onPress={() => {
-                  console.log("Edit pressed");
-                  closeHabitMenu();
-                }}
-                title="Edit"
-                leadingIcon="pencil"
-              />
-              <Menu.Item
-                onPress={() => {
-                  console.log("Delete pressed");
-                  closeHabitMenu();
-                }}
-                title="Delete"
-                titleStyle={{ color: "red" }}
-                leadingIcon="trash-can"
-              />
-            </Menu>
+              items={[
+                { label: "Edit", onPress: () => console.log("edit") },
+                {
+                  label: "Delete",
+                  danger: true,
+                  onPress: handleDelButtonPress,
+                },
+              ]}
+            />
           </View>
           <Image
             source={require("../../assets/images/defaults/default-habit-img.png")}
@@ -526,10 +476,15 @@ const styles = StyleSheet.create({
   optionsButton: {
     alignItems: "flex-end",
   },
+  noteOptionsButton: {
+    alignItems: "flex-end",
+    marginRight: 15,
+    marginTop: 8,
+  },
   noteDescription: {
     flex: 1,
     fontSize: 15,
-    marginBottom: 10,
+    marginVertical: 10,
     color: "#6c6c80",
   },
   noteFooter: {
