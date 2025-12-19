@@ -14,7 +14,14 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { Alert, Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { ID } from "react-native-appwrite";
 import { ScrollView } from "react-native-gesture-handler";
-import { Button, Surface, Text, TextInput, useTheme } from "react-native-paper";
+import {
+  Button,
+  Menu,
+  Surface,
+  Text,
+  TextInput,
+  useTheme,
+} from "react-native-paper";
 
 // this page will provide extra details about the task, along with notes of the task
 // also provide the user with options to delete or renew the task or edit task
@@ -33,6 +40,18 @@ export default function HabitDetailsScreen() {
   const [newNote, setNewNote] = useState<string>("");
   const [description, setDescritipion] = useState<string>("");
   const [frequency, setFrequency] = useState<Frequency>("daily");
+
+  const [visibleHabitMenuId, setVisibleHabitMenuId] = useState(false);
+  const [visibleNoteMenuId, setVisibleNoteMenuId] = useState<boolean | null>(
+    null
+  );
+
+  const openHabitMenu = () => setVisibleHabitMenuId(true);
+  const closeHabitMenu = () => setVisibleHabitMenuId(false);
+  const openNoteMenu = () => setVisibleNoteMenuId(true);
+  const closeNoteMenu = () => setVisibleNoteMenuId(null);
+
+  const toggleHabitMenu = () => setVisibleHabitMenuId(!visibleHabitMenuId);
 
   const [dateTime, setDateTime] = useState<string[]>([
     "Weekday",
@@ -217,23 +236,76 @@ export default function HabitDetailsScreen() {
     }
   };
 
-  const displayNote = (note: Note) => {
-    // add more logic to option button press, add edit and delete functionality
-    const handleNoteOptions = () => {
-      Alert.alert("Note Options", `Settings for note: ${note.note_id}`);
-    };
+  // const displayNote = (note: Note) => {
+  //   // add more logic to option button press, add edit and delete functionality
+  //   // Inside your main function component
+  //   const [visibleMenuId, setVisibleMenuId] = useState<string | null>(null);
 
+  //   const openMenu = (id: string) => setVisibleMenuId(id);
+  //   const closeMenu = () => setVisibleMenuId(null);
+  //   const handleNoteOptions = () => {
+  //     // Alert.alert("Note Options", `Settings for note: ${note.note_id}`);
+  //     return <View style={styles.noteOptionsBox}></View>;
+  //   };
+
+  //   return (
+  //     <View>
+  //       <Text style={styles.noteDate}>{note.last_updated}</Text>
+  //       <Surface style={styles.noteCard} elevation={0}>
+  //         <View style={styles.noteContent}>
+  //           <TouchableOpacity
+  //             onPress={handleNoteOptions}
+  //             style={styles.optionsButton}
+  //           >
+  //             <SimpleLineIcons name="options" size={18} color="#6c6c80" />
+  //           </TouchableOpacity>
+
+  //           <Text style={styles.noteDescription}>{note.description}</Text>
+  //           <Text style={styles.noteFooter}>{note.user_id_updated}</Text>
+  //         </View>
+  //       </Surface>
+  //     </View>
+  //   );
+  // };
+
+  const displayNote = (note: Note) => {
     return (
+      // <View key={note.note_id}>
       <View>
         <Text style={styles.noteDate}>{note.last_updated}</Text>
         <Surface style={styles.noteCard} elevation={0}>
           <View style={styles.noteContent}>
-            <TouchableOpacity
-              onPress={handleNoteOptions}
-              style={styles.optionsButton}
+            {/* ✅ Wrap the button in a Menu */}
+            <Menu
+              visible={visibleNoteMenuId === true}
+              onDismiss={closeNoteMenu}
+              anchor={
+                <TouchableOpacity
+                  onPress={() => openNoteMenu()}
+                  style={styles.optionsButton}
+                >
+                  <SimpleLineIcons name="options" size={18} color="#6c6c80" />
+                </TouchableOpacity>
+              }
             >
-              <SimpleLineIcons name="options" size={18} color="#6c6c80" />
-            </TouchableOpacity>
+              <Menu.Item
+                onPress={() => {
+                  console.log("Edit pressed");
+                  closeNoteMenu();
+                }}
+                title="Edit"
+                leadingIcon="pencil"
+              />
+              <Menu.Item
+                onPress={() => {
+                  console.log("Delete pressed");
+                  closeNoteMenu();
+                }}
+                title="Delete"
+                titleStyle={{ color: "red" }}
+                leadingIcon="trash-can"
+              />
+            </Menu>
 
             <Text style={styles.noteDescription}>{note.description}</Text>
             <Text style={styles.noteFooter}>{note.user_id_updated}</Text>
@@ -255,19 +327,59 @@ export default function HabitDetailsScreen() {
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.segment}>
+          <View style={styles.menuAnchorContainer}>
+            <Menu
+              visible={visibleHabitMenuId}
+              onDismiss={closeHabitMenu}
+              anchor={
+                <TouchableOpacity
+                  onPress={openHabitMenu}
+                  style={styles.optionsButton}
+                >
+                  <SimpleLineIcons name="options" size={24} color="#6c6c80" />
+                </TouchableOpacity>
+              }
+            >
+              <Menu.Item
+                onPress={() => {
+                  console.log("Edit pressed");
+                  closeHabitMenu();
+                }}
+                title="Edit"
+                leadingIcon="pencil"
+              />
+              <Menu.Item
+                onPress={() => {
+                  console.log("Delete pressed");
+                  closeHabitMenu();
+                }}
+                title="Delete"
+                titleStyle={{ color: "red" }}
+                leadingIcon="trash-can"
+              />
+            </Menu>
+          </View>
           <Image
             source={require("../../assets/images/defaults/default-habit-img.png")}
             // CRUCIAL: Remember to set explicit width and height in styles
             style={styles.defaultImage}
           />
-          <Text style={styles.habitTitle}>{habit?.title}</Text>
+          <View style={styles.habitHeader}>
+            <Text style={styles.habitTitle}>{habit?.title}</Text>
+            <View style={styles.habitFreq}>
+              <Text style={styles.habitFreqText}>
+                {habit?.frequency.charAt(0).toUpperCase() +
+                  habit?.frequency.slice(1)}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.habitDescription}>{habit?.description}</Text>
           <Text>Streak: {habit?.streak_count}</Text>
           <Text>Last Completed: {habit?.last_completed}</Text>
           <Text>Creation date: {`${dateTime[0]}, ${dateTime[1]}`}</Text>
         </View>
         <View style={styles.segment}>
-          <Text style={styles.habitTitle}>Notes</Text>
+          <Text style={styles.notesTitle}>Notes</Text>
           <TextInput
             style={{ marginBottom: 5 }}
             label="Add a Note"
@@ -279,13 +391,13 @@ export default function HabitDetailsScreen() {
             style={styles.innerNotesScroll}
           >
             {displayNote(myNote)}
+            {/* {displayNote(myNote)}
             {displayNote(myNote)}
             {displayNote(myNote)}
             {displayNote(myNote)}
             {displayNote(myNote)}
             {displayNote(myNote)}
-            {displayNote(myNote)}
-            {displayNote(myNote)}
+            {displayNote(myNote)} */}
           </ScrollView>
         </View>
         <Button
@@ -311,15 +423,24 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    marginTop: 30,
+    // marginTop: 30,
     justifyContent: "center",
+  },
+  menuAnchorContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    width: "100%",
+    position: "absolute", // This keeps the menu from shifting the Image/Title
+    top: 0,
+    right: 0,
+    zIndex: 10,
   },
   defaultImage: {
     // ✅ MUST define width and height for local images
     width: 100, // Example size
     height: 100, // Example size
     alignSelf: "center", // Example centering
-    marginBottom: 20,
+    marginVertical: 24,
   },
   prompts: {
     // padding: 24,
@@ -334,11 +455,31 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 14,
   },
+  habitHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   habitTitle: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 4,
     color: "#22223b",
+  },
+  habitFreq: {
+    // fontSize: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 20,
+    marginBottom: 4,
+    backgroundColor: "#ede7f6",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+  },
+  habitFreqText: {
+    color: "#7c4dff",
+    fontWeight: "bold",
+    fontSize: 18,
   },
   habitDescription: {
     fontSize: 20,
@@ -346,12 +487,19 @@ const styles = StyleSheet.create({
     color: "#6c6c80",
   },
   innerNotesScroll: {
-    height: 300,
+    height: 320,
     // borderWidth: 1,
     // borderColor: "#ccc",
     borderRadius: 18,
     marginTop: 10,
     paddingHorizontal: 5,
+  },
+  notesTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 4,
+    marginTop: 20,
+    color: "#22223b",
   },
   noteCard: {
     marginBottom: 18,
