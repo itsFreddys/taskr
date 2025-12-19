@@ -18,6 +18,7 @@ type Props = {
   onDismiss: () => void;
   items: MenuItem[];
   anchor: React.ReactNode;
+  position?: { top: number; left: number }; // 👈 NEW
 };
 
 export default function CustomMenu({
@@ -25,16 +26,24 @@ export default function CustomMenu({
   onDismiss,
   items,
   anchor,
+  position = { top: 50, left: 0 },
 }: Props) {
   return (
     <View>
-      {/* Anchor */}
       {anchor}
 
-      {/* Overlay */}
       <Modal transparent visible={visible} animationType="fade">
         <Pressable style={styles.overlay} onPress={onDismiss}>
-          <View style={styles.menuContainer}>
+          <View
+            style={[
+              styles.menuContainer,
+              {
+                position: "absolute",
+                top: position.top,
+                left: position.left,
+              },
+            ]}
+          >
             {items.map((item, index) => (
               <TouchableOpacity
                 key={index}
@@ -61,18 +70,12 @@ export default function CustomMenu({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: "flex-start",
-    alignItems: "flex-end",
-    paddingTop: 50,
-    paddingRight: 20,
-    backgroundColor: "rgba(0,0,0,0.1)",
   },
   menuContainer: {
-    marginTop: 120,
     backgroundColor: "white",
     borderRadius: 10,
     paddingVertical: 6,
-    width: 120,
+    width: 180,
     shadowColor: "#000",
     shadowOpacity: 0.2,
     shadowRadius: 8,

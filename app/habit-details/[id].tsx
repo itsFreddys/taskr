@@ -46,8 +46,11 @@ export default function HabitDetailsScreen() {
   const [habitMenuOpen, setHabitMenuOpen] = useState(false);
   const [noteMenuOpen, setNoteMenuOpen] = useState(false);
 
-  const toggleHabitMenu = () => setVisibleHabitMenuId(!visibleHabitMenuId);
-  const toggleNoteMenu = () => setVisibleNoteMenuId(!visibleNoteMenuId);
+  const [habitMenuPosition, setHabitMenuPosition] = useState({
+    top: 0,
+    left: 0,
+  });
+  const [noteMenuPosition, setNoteMenuPosition] = useState({ top: 0, left: 0 });
 
   const [dateTime, setDateTime] = useState<string[]>([
     "Weekday",
@@ -244,9 +247,14 @@ export default function HabitDetailsScreen() {
               <CustomMenu
                 visible={noteMenuOpen}
                 onDismiss={() => setNoteMenuOpen(false)}
+                position={noteMenuPosition}
                 anchor={
                   <TouchableOpacity
-                    onPress={() => setNoteMenuOpen(true)}
+                    onPress={(e) => {
+                      const { pageX, pageY } = e.nativeEvent;
+                      setNoteMenuPosition({ top: pageY, left: pageX - 180 }); // 180 = menu width
+                      setNoteMenuOpen(true);
+                    }}
                     style={styles.noteOptionsButton}
                   >
                     <SimpleLineIcons name="options" size={18} color="#6c6c80" />
@@ -254,14 +262,11 @@ export default function HabitDetailsScreen() {
                 }
                 items={[
                   { label: "Edit", onPress: () => console.log("edit") },
-                  {
-                    label: "Copy",
-                    onPress: () => console.log("copy pressed"),
-                  },
+                  { label: "Copy", onPress: () => console.log("copy pressed") },
                   {
                     label: "Delete",
                     danger: true,
-                    onPress: () => console.log("note delete pressed"),
+                    onPress: () => console.log("delete"),
                   },
                 ]}
               />
@@ -291,20 +296,25 @@ export default function HabitDetailsScreen() {
             <CustomMenu
               visible={habitMenuOpen}
               onDismiss={() => setHabitMenuOpen(false)}
+              position={habitMenuPosition}
               anchor={
                 <TouchableOpacity
-                  onPress={() => setHabitMenuOpen(true)}
-                  style={styles.optionsButton}
+                  onPress={(e) => {
+                    const { pageX, pageY } = e.nativeEvent;
+                    setHabitMenuPosition({ top: pageY, left: pageX - 180 }); // 180 = menu width
+                    setHabitMenuOpen(true);
+                  }}
+                  style={styles.habitOptionsButton}
                 >
-                  <SimpleLineIcons name="options" size={24} color="#6c6c80" />
+                  <SimpleLineIcons name="options" size={18} color="#6c6c80" />
                 </TouchableOpacity>
               }
               items={[
-                { label: "Edit", onPress: () => console.log("edit") },
+                { label: "Edit", onPress: () => console.log("habit edit") },
                 {
                   label: "Delete",
                   danger: true,
-                  onPress: handleDelButtonPress,
+                  onPress: () => console.log("habit delete"),
                 },
               ]}
             />
@@ -473,7 +483,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#6c6c80",
   },
-  optionsButton: {
+  habitOptionsButton: {
     alignItems: "flex-end",
   },
   noteOptionsButton: {
