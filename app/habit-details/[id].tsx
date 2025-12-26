@@ -12,7 +12,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import SimpleLineIcons from "@expo/vector-icons/SimpleLineIcons";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { Alert, Image, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 import { ID } from "react-native-appwrite";
 import { ScrollView } from "react-native-gesture-handler";
 import { Button, Surface, Text, TextInput, useTheme } from "react-native-paper";
@@ -319,11 +319,12 @@ export default function HabitDetailsScreen() {
               ]}
             />
           </View>
-          <Image
+          {/* <Image
             source={require("../../assets/images/defaults/default-habit-img.png")}
             // CRUCIAL: Remember to set explicit width and height in styles
             style={styles.defaultImage}
-          />
+          /> */}
+          <Text style={styles.emojiIcon}>✅</Text>
           <View style={styles.habitHeader}>
             <Text style={styles.habitTitle}>{habit?.title}</Text>
             <View style={styles.habitFreq}>
@@ -395,11 +396,17 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  defaultImage: {
-    // ✅ MUST define width and height for local images
-    width: 100, // Example size
-    height: 100, // Example size
-    alignSelf: "center", // Example centering
+  // defaultImage: {
+  //   // ✅ MUST define width and height for local images
+  //   width: 100, // Example size
+  //   height: 100, // Example size
+  //   alignSelf: "center", // Example centering
+  //   marginVertical: 24,
+  // },
+  emojiIcon: {
+    fontSize: 100,
+    textAlign: "center",
+    alignSelf: "center",
     marginVertical: 24,
   },
   prompts: {
