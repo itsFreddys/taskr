@@ -324,7 +324,7 @@ export default function HabitDetailsScreen() {
             // CRUCIAL: Remember to set explicit width and height in styles
             style={styles.defaultImage}
           /> */}
-          <Text style={styles.emojiIcon}>✅</Text>
+          <Text style={styles.emojiIcon}>{habit?.emote_pic}</Text>
           <View style={styles.habitHeader}>
             <Text style={styles.habitTitle}>{habit?.title}</Text>
             <View style={styles.habitFreq}>

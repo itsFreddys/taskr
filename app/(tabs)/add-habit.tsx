@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { CustomEmojiPicker } from "@/components/CustomEmojiPicker";
 import {
   StyleSheet,
   TouchableOpacity,
@@ -52,6 +53,7 @@ export default function AddHabitScreen() {
           streak_count: 0,
           last_completed: new Date().toISOString(),
           created_at: new Date().toISOString(),
+          emote_pic: emojiPic,
         }
       );
       router.back();
@@ -62,29 +64,14 @@ export default function AddHabitScreen() {
 
   return (
     <View style={styles.container}>
-      <Modal
+      <CustomEmojiPicker
         visible={emojiPickerVisible}
-        animationType="slide"
-        onRequestClose={() => setEmojiPickerVisible(false)}
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={styles.imageSelector}>
-            <Text style={styles.emojiIcon}>{emojiPic}</Text>
-          </View>
-          <View style={{ marginTop: 10, flex: 1 }}>
-            <EmojiSelector
-              onEmojiSelected={(emoji) => {
-                setEmojiPic(emoji);
-                setEmojiPickerVisible(false);
-              }}
-              showSearchBar={true}
-              showTabs
-              columns={8}
-              category={Categories.objects}
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
+        onClose={() => setEmojiPickerVisible(false)}
+        onSelect={(emoji) => {
+          setEmojiPic(emoji);
+          setEmojiPickerVisible(false);
+        }}
+      />
 
       <View style={styles.prompts}>
         <View style={styles.imageHeader}>

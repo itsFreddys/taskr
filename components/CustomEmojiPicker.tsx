@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react"; // Added useState import
 import {
   StyleSheet,
   TouchableOpacity,
@@ -7,27 +7,7 @@ import {
   FlatList,
   SafeAreaView,
 } from "react-native";
-import { Button, Text, Surface, IconButton } from "react-native-paper";
-
-// 1. Define your curated categories relevant to Taskr
-const EMOJI_CATEGORIES = [
-  {
-    title: "Education",
-    data: ["🎓", "📚", "🎒", "🧠", "⭐", "📢", "🧪", "🎨", "✏️", "📐"],
-  },
-  {
-    title: "Health",
-    data: ["💪", "🏃", "🧘", "🥗", "💧", "🍎", "🥦", "🛏️", "🧘‍♂️", "🚶"],
-  },
-  {
-    title: "Productivity",
-    data: ["💻", "📝", "💡", "📅", "📧", "⌛", "🎯", "🛠️", "✅", "📈"],
-  },
-  {
-    title: "Student Needs",
-    data: ["🎧", "🧸", "🧩", "🔤", "🤐", "🫂", "🤚", "👂", "👀", "🌈"],
-  },
-];
+import { Text, Surface, IconButton } from "react-native-paper";
 
 interface PickerProps {
   visible: boolean;
@@ -40,6 +20,54 @@ export const CustomEmojiPicker = ({
   onClose,
   onSelect,
 }: PickerProps) => {
+  // 1. Move state INSIDE the component
+  const [emoteFav, setEmoteFav] = useState<string[]>(["⭐", "✅"]);
+  const [emoteHistory, setEmoteHistory] = useState<string[]>([]);
+
+  // 2. Define categories INSIDE so they react to state changes
+  const EMOJI_CATEGORIES = [
+    { title: "Favorites", data: emoteFav },
+    { title: "History", data: emoteHistory },
+    {
+      title: "Education",
+      data: ["🎓", "📚", "🎒", "🧠", "⭐", "📢", "🧪", "🎨", "✏️", "📐"],
+    },
+    {
+      title: "Health",
+      data: ["💪", "🏃", "🧘", "🥗", "💧", "🍎", "🥦", "🛏️", "🧘‍♂️", "🚶"],
+    },
+    {
+      title: "Productivity",
+      data: ["💻", "📝", "💡", "📅", "📧", "⌛", "🎯", "🛠️", "✅", "📈"],
+    },
+    {
+      title: "Student Needs",
+      data: ["🎧", "🧸", "🧩", "🔤", "🤐", "🫂", "🤚", "👂", "👀", "🌈"],
+    },
+  ];
+
+  const updateEmojiHistory = (emote: string) => {
+    // 3. Fixed .includes() typo
+    const hasEmote = emoteHistory.includes(emote);
+
+    if (hasEmote) {
+      // Move existing emote to the front
+      const updatedList = emoteHistory.filter((item) => item !== emote);
+      setEmoteHistory([emote, ...updatedList]);
+    } else {
+      // Add new, slice to keep limit at 12
+      setEmoteHistory((prev) => [emote, ...prev].slice(0, 12));
+    }
+  };
+
+  const toggleFavorite = (emote: string) => {
+    if (emoteFav.includes(emote)) {
+      setEmoteFav(emoteFav.filter((item) => item !== emote));
+    } else {
+      setEmoteFav([emote, ...emoteFav]);
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent={true}>
       <SafeAreaView style={styles.modalOverlay}>
@@ -57,15 +85,30 @@ export const CustomEmojiPicker = ({
               <View style={styles.categorySection}>
                 <Text style={styles.categoryTitle}>{item.title}</Text>
                 <View style={styles.emojiGrid}>
-                  {item.data.map((emoji) => (
-                    <TouchableOpacity
-                      key={emoji}
-                      style={styles.emojiButton}
-                      onPress={() => onSelect(emoji)}
-                    >
-                      <Text style={styles.emojiText}>{emoji}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {item.data.length > 0 ? (
+                    item.data.map((emoji) => (
+                      <TouchableOpacity
+                        key={`${item.title}-${emoji}`}
+                        style={styles.emojiButton}
+                        onPress={() => {
+                          onSelect(emoji);
+                          updateEmojiHistory(emoji);
+                        }}
+                        // Long press to favorite/unfavorite
+                        onLongPress={() => toggleFavorite(emoji)}
+                      >
+                        <Text style={styles.emojiText}>{emoji}</Text>
+                        {/* Optional: Visual indicator if favorite */}
+                        {emoteFav.includes(emoji) && (
+                          <View style={styles.favIndicator} />
+                        )}
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Text style={styles.emptyEmoji}>
+                      No {item.title.toLowerCase()} yet
+                    </Text>
+                  )}
                 </View>
               </View>
             )}
@@ -86,7 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: "70%",
+    height: "75%",
     padding: 20,
   },
   modalHeader: {
@@ -121,6 +164,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f5f5f5",
     borderRadius: 12,
+    position: "relative",
+  },
+  favIndicator: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#FFD700", // Gold color for favorite
+  },
+  emptyEmoji: {
+    fontSize: 13,
+    color: "#6c6c80",
+    marginLeft: 5,
+    fontStyle: "italic",
   },
   emojiText: {
     fontSize: 24,
