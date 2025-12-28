@@ -2,6 +2,7 @@ import { Models } from "react-native-appwrite";
 
 export interface Habit extends Models.Document {
     user_id: string;
+    emote_pic: string;
     title: string;
     description: string;
     frequency: string;
