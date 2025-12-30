@@ -19,8 +19,10 @@ export interface HabitCompletion extends Models.Document {
 
 export interface Note extends Models.Document {
     note_id: string;
+    habit_id: string;
+    user_id: string;
+    username: string;
     description: string;
-    user_id_updated: string;
-    last_updated: string;
     created_at: string;
+    updated_at: string;
 }

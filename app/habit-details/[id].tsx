@@ -5,11 +5,12 @@ import {
   client,
   DATABASE_ID,
   databases,
+  HABIT_NOTES_TABLE_ID,
   HABITS_TABLE_ID,
-  RealTimeResponse,
 } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
 import { Habit, Note } from "@/types/database.type";
+import { Ionicons } from "@expo/vector-icons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import SimpleLineIcons from "@expo/vector-icons/SimpleLineIcons";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -21,7 +22,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Button, Text, TextInput } from "react-native-paper";
+import { ID, Query } from "react-native-appwrite";
+import { Button, Text, TextInput, useTheme } from "react-native-paper";
 
 // --- Utilities ---
 const setupDateTime = (strDate: string) => {
@@ -46,12 +48,18 @@ export default function HabitDetailsScreen() {
   // --- UI State ---
   const [habit, setHabit] = useState<Habit | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorText, setErrorText] = useState<string | null>(null);
   const [habitMenuOpen, setHabitMenuOpen] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [habitMenuPosition, setHabitMenuPosition] = useState({
     top: 0,
     left: 0,
   });
+  const theme = useTheme();
+
+  // --- Notes States
+  const [newNote, setNewNote] = useState<string>("");
+  const [Notes, setNotes] = useState<Note[]>();
 
   // --- Data Fetching ---
   const fetchHabit = useCallback(async () => {
@@ -70,21 +78,48 @@ export default function HabitDetailsScreen() {
     }
   }, [id]);
 
+  const fetchNotes = useCallback(async () => {
+    if (!id) return;
+
+    try {
+      // fetch all the docs of the notes collection
+      const response = await databases.listDocuments<Note>(
+        DATABASE_ID,
+        HABIT_NOTES_TABLE_ID,
+        [Query.equal("habit_id", id as string), Query.orderDesc("created_at")]
+      );
+      setNotes(response.documents as Note[]);
+    } catch (error) {
+      console.error("Fetch Notes Error:", error);
+    }
+  }, [id]);
+
   useEffect(() => {
     if (!user) return;
 
-    const channel = `databases.${DATABASE_ID}.collections.${HABITS_TABLE_ID}.documents.${id}`;
-    const subscription = client.subscribe(
-      channel,
-      (response: RealTimeResponse) => {
-        // Refresh on any change to this specific document
-        fetchHabit();
+    // Subscribe to Habit changes
+    const habitChannel = `databases.${DATABASE_ID}.collections.${HABITS_TABLE_ID}.documents.${id}`;
+    // Subscribe to ALL notes for this specific habit
+    const notesChannel = `databases.${DATABASE_ID}.collections.${HABIT_NOTES_TABLE_ID}.documents`;
+
+    const unsubscribeHabit = client.subscribe(habitChannel, () => fetchHabit());
+
+    const unsubscribeNotes = client.subscribe(notesChannel, (response) => {
+      // Only refresh if the note belongs to this habit
+      const payload = response.payload as Note;
+      if (payload && payload.habit_id === id) {
+        fetchNotes();
       }
-    );
+    });
 
     fetchHabit();
-    return () => subscription();
-  }, [user, id, fetchHabit]);
+    fetchNotes();
+
+    return () => {
+      unsubscribeHabit();
+      unsubscribeNotes();
+    };
+  }, [user, id, fetchHabit, fetchNotes]);
 
   // --- Handlers ---
   const handleDelete = async () => {
@@ -112,13 +147,23 @@ export default function HabitDetailsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: "Habit Details",
+      // --- Right Side (Menu) ---
       headerRight: () => (
-        <MaterialIcons
-          name="menu"
-          size={24}
-          color="#000"
+        <TouchableOpacity
           onPress={() => Alert.alert("Settings")}
-        />
+          style={styles.headerIconContainer}
+        >
+          <MaterialIcons name="menu" size={24} color="#22223b" />
+        </TouchableOpacity>
+      ),
+      // --- Left Side (Back) ---
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.headerIconContainer}
+        >
+          <Ionicons name="chevron-back-outline" size={24} color="#22223b" />
+        </TouchableOpacity>
       ),
     });
   }, [navigation]);
@@ -133,6 +178,37 @@ export default function HabitDetailsScreen() {
   const formattedDate = habit?.created_at
     ? setupDateTime(habit.created_at)
     : ["--", "--"];
+
+  const submitNewNote = async () => {
+    if (!user) return;
+    setErrorText(null);
+    if (newNote.length < 4) {
+      setErrorText("Note needs to be at least 5 characters.");
+      return;
+    }
+
+    const currentDate = new Date().toISOString();
+
+    try {
+      await databases.createDocument(
+        DATABASE_ID,
+        HABIT_NOTES_TABLE_ID,
+        ID.unique(),
+        {
+          habit_id: id,
+          user_id: user.$id,
+          username: user.name,
+          description: newNote,
+          created_at: currentDate,
+          updated_at: currentDate,
+        }
+      );
+    } catch (error) {
+      setErrorText(
+        error instanceof Error ? error.message : "Error creating new note."
+      );
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -190,22 +266,33 @@ export default function HabitDetailsScreen() {
         <View style={styles.segment}>
           <Text style={styles.notesTitle}>Notes</Text>
           <TextInput
+            style={styles.noteInput}
             label="Add a Note"
             mode="outlined"
-            style={styles.noteInput}
+            value={newNote}
+            onChangeText={setNewNote}
+            returnKeyType="done"
+            blurOnSubmit
+            onSubmitEditing={async () => {
+              await submitNewNote();
+              setNewNote(""); // clear after submit if you want
+            }}
           />
+          {errorText && (
+            <Text style={{ color: theme.colors.error, marginBottom: 10 }}>
+              {errorText}
+            </Text>
+          )}
           <ScrollView style={styles.innerNotesScroll} nestedScrollEnabled>
-            <DisplayNote
-              note={
-                {
-                  note_id: "1",
-                  description: "Static mock note for now",
-                  user_id_updated: "System",
-                  last_updated: "Today",
-                  created_at: "Today",
-                } as Note
-              }
-            />
+            {Notes && Notes.length > 0 ? (
+              Notes.map((item) => <DisplayNote key={item.$id} note={item} />)
+            ) : (
+              <Text
+                style={{ textAlign: "center", marginTop: 20, color: "#6c6c80" }}
+              >
+                No notes yet. Add one above!
+              </Text>
+            )}
           </ScrollView>
         </View>
 
@@ -230,6 +317,14 @@ export default function HabitDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerIconContainer: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    // We remove backgroundColor and borderRadius to make it "invisible"
+    marginHorizontal: 8, // Space from the screen edges
+  },
   container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 24 },
   segment: { marginTop: 20 },
   menuAnchorContainer: { position: "absolute", top: 0, right: 0, zIndex: 10 },
@@ -241,8 +336,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#ede7f6",
     paddingHorizontal: 10,
     borderRadius: 12,
+    height: 25,
+    alignItems: "center",
+    justifyContent: "center",
   },
   habitFreqText: {
+    textAlign: "center",
+    justifyContent: "center",
     color: "#7c4dff",
     fontWeight: "bold",
     textTransform: "capitalize",
@@ -256,6 +356,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   noteInput: { marginBottom: 15 },
-  innerNotesScroll: { height: 250 },
-  bottomDelete: { marginTop: 40, marginBottom: 20 },
+  innerNotesScroll: { height: 320 },
+  bottomDelete: {
+    alignSelf: "center",
+    marginTop: 40,
+    marginBottom: 20,
+    width: 150,
+  },
 });

@@ -1,7 +1,9 @@
+import { DATABASE_ID, databases, HABIT_NOTES_TABLE_ID } from "@/lib/appwrite";
 import { Note } from "@/types/database.type";
 import { SimpleLineIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Surface, Text } from "react-native-paper";
 import CustomMenu from "./CustomMenu"; // Adjust path if needed
 
@@ -9,13 +11,56 @@ interface DisplayNoteProps {
   note: Note;
 }
 
+const setupDateTime = (strDate: string) => {
+  const date = new Date(strDate);
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  };
+  return date.toLocaleDateString("en-US", options).split(", ");
+};
+
 export const DisplayNote = ({ note }: DisplayNoteProps) => {
+  const router = useRouter();
   const [noteMenuOpen, setNoteMenuOpen] = useState(false);
   const [noteMenuPosition, setNoteMenuPosition] = useState({ top: 0, left: 0 });
 
+  const formattedDate = note?.updated_at
+    ? setupDateTime(note.updated_at)
+    : ["--", "--"];
+
+  // --- Handlers ---
+  const handleDeleteNote = async () => {
+    Alert.alert("Delete Note", "Are you sure? This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await databases.deleteDocument(
+              DATABASE_ID,
+              HABIT_NOTES_TABLE_ID,
+              note.$id as string
+            );
+            // router.back();
+          } catch (e) {
+            console.error(e);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View>
-      <Text style={styles.noteDate}>{note.last_updated}</Text>
+      <Text style={styles.noteDate}>
+        {formattedDate[0]}, {formattedDate[1]}
+      </Text>
       <Surface style={styles.noteCard} elevation={0}>
         <View style={styles.noteContent}>
           <View style={styles.menuAnchorContainer}>
@@ -41,13 +86,13 @@ export const DisplayNote = ({ note }: DisplayNoteProps) => {
                 {
                   label: "Delete",
                   danger: true,
-                  onPress: () => console.log("delete"),
+                  onPress: handleDeleteNote,
                 },
               ]}
             />
           </View>
           <Text style={styles.noteDescription}>{note.description}</Text>
-          <Text style={styles.noteFooter}>{note.user_id_updated}</Text>
+          <Text style={styles.noteFooter}>{note.username}</Text>
         </View>
       </Surface>
     </View>
