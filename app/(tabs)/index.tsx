@@ -192,8 +192,6 @@ export default function Index() {
     return true;
   });
 
-  // const showAllHabits;
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -274,12 +272,6 @@ export default function Index() {
             >
               <Pressable
                 onPress={() => router.push(`/habit-details/${habit.$id}`)}
-                // style={{
-                //   backgroundColor: isHabitCompleted(habit.$id)
-                //     ? styles.completedCard.backgroundColor
-                //     : styles.card.backgroundColor,
-                //   borderRadius: 18,
-                // }}
               >
                 <Surface
                   style={[
@@ -289,12 +281,14 @@ export default function Index() {
                   elevation={0}
                 >
                   <View key={habit.$id} style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{habit.title}</Text>
+                    <Text style={styles.cardTitle}>
+                      {habit.title} {habit.emote_pic}
+                    </Text>
                     <Text style={styles.cardDescription}>
                       {habit.description}
                     </Text>
                     <View style={styles.cardFooter}>
-                      <View style={styles.cardStreak}>
+                      {/* <View style={styles.cardStreak}>
                         <MaterialCommunityIcons
                           name="fire"
                           size={18}
@@ -303,7 +297,7 @@ export default function Index() {
                         <Text style={styles.streakText}>
                           {habit.streak_count} day streak
                         </Text>
-                      </View>
+                      </View> */}
                       <View style={styles.cardFreq}>
                         <Text style={styles.freqText}>
                           {habit.frequency.charAt(0).toUpperCase() +
@@ -378,11 +372,15 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: 20,
   },
+  cardHeader: {
+    flexDirection: "row",
+  },
   cardTitle: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 4,
     color: "#22223b",
+    marginRight: 10,
   },
   cardDescription: {
     fontSize: 15,

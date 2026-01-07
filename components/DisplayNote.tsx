@@ -1,10 +1,26 @@
 import { DATABASE_ID, databases, HABIT_NOTES_TABLE_ID } from "@/lib/appwrite";
+import { useAuth } from "@/lib/auth-context"; // Import Auth to check ownership
 import { Note } from "@/types/database.type";
 import { SimpleLineIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import * as Clipboard from "expo-clipboard"; // Import Clipboard
 import React, { useState } from "react";
-import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Surface, Text } from "react-native-paper";
+import {
+  Alert,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  Button,
+  IconButton,
+  Surface,
+  Text,
+  TextInput,
+} from "react-native-paper";
+
+import { useRouter } from "expo-router";
 import CustomMenu from "./CustomMenu"; // Adjust path if needed
 
 interface DisplayNoteProps {
@@ -26,14 +42,51 @@ const setupDateTime = (strDate: string) => {
 
 export const DisplayNote = ({ note }: DisplayNoteProps) => {
   const router = useRouter();
+  const { user } = useAuth();
   const [noteMenuOpen, setNoteMenuOpen] = useState(false);
   const [noteMenuPosition, setNoteMenuPosition] = useState({ top: 0, left: 0 });
+
+  // edit states
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editedDescription, setEditedDescription] = useState(note.description);
+
+  const isOwner = user?.$id === note.user_id;
 
   const formattedDate = note?.updated_at
     ? setupDateTime(note.updated_at)
     : ["--", "--"];
 
   // --- Handlers ---
+  const handleCopyNote = async () => {
+    await Clipboard.setStringAsync(note.description);
+    setNoteMenuOpen(false);
+    // Optional: Add a Toast or Alert to let user know it copied
+  };
+
+  const handleSaveEdit = async () => {
+    // 1. Avoid API call if no changes made
+    if (editedDescription.trim() === note.description) {
+      setIsEditModalVisible(false);
+      return;
+    }
+
+    try {
+      await databases.updateDocument(
+        DATABASE_ID,
+        HABIT_NOTES_TABLE_ID,
+        note.$id,
+        {
+          description: editedDescription,
+          updated_at: new Date().toISOString(),
+        }
+      );
+      setIsEditModalVisible(false);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Could not update note.");
+    }
+  };
+
   const handleDeleteNote = async () => {
     Alert.alert("Delete Note", "Are you sure? This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
@@ -58,6 +111,42 @@ export const DisplayNote = ({ note }: DisplayNoteProps) => {
 
   return (
     <View>
+      <Modal
+        visible={isEditModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <SafeAreaView style={styles.modalOverlay}>
+          <Surface style={styles.modalContent} elevation={5}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Note</Text>
+              <IconButton
+                icon="close"
+                onPress={() => setIsEditModalVisible(false)}
+              />
+            </View>
+
+            <TextInput
+              mode="outlined"
+              multiline
+              value={editedDescription}
+              onChangeText={setEditedDescription}
+              style={styles.editInput}
+              autoFocus
+            />
+
+            <View style={styles.modalActions}>
+              <Button onPress={() => setIsEditModalVisible(false)}>
+                Cancel
+              </Button>
+              <Button mode="contained" onPress={handleSaveEdit}>
+                Save
+              </Button>
+            </View>
+          </Surface>
+        </SafeAreaView>
+      </Modal>
+
       <Text style={styles.noteDate}>
         {formattedDate[0]}, {formattedDate[1]}
       </Text>
@@ -81,13 +170,31 @@ export const DisplayNote = ({ note }: DisplayNoteProps) => {
                 </TouchableOpacity>
               }
               items={[
-                { label: "Edit", onPress: () => console.log("edit") },
-                { label: "Copy", onPress: () => console.log("copy") },
+                // Only show Edit/Delete if user owns the note
+                ...(isOwner
+                  ? [
+                      {
+                        label: "Edit",
+                        onPress: () => {
+                          setNoteMenuOpen(false);
+                          setIsEditModalVisible(true);
+                        },
+                      },
+                    ]
+                  : []),
                 {
-                  label: "Delete",
-                  danger: true,
-                  onPress: handleDeleteNote,
+                  label: "Copy",
+                  onPress: handleCopyNote,
                 },
+                ...(isOwner
+                  ? [
+                      {
+                        label: "Delete",
+                        danger: true,
+                        onPress: handleDeleteNote,
+                      },
+                    ]
+                  : []),
               ]}
             />
           </View>
@@ -100,6 +207,35 @@ export const DisplayNote = ({ note }: DisplayNoteProps) => {
 };
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    height: "50%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "bold" },
+  editInput: {
+    height: 120,
+    textAlignVertical: "top",
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
   noteCard: {
     marginBottom: 18,
     borderRadius: 10,
