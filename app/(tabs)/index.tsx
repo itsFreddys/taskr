@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { ID, Query } from "react-native-appwrite";
 import { Swipeable } from "react-native-gesture-handler";
-import { Button, Surface, Text } from "react-native-paper";
+import { Button, Surface, Text, useTheme } from "react-native-paper";
 
 export default function Index() {
   const { signOut, user } = useAuth();
@@ -24,6 +24,8 @@ export default function Index() {
     "all" | "active" | "completed"
   >("all");
   const router = useRouter();
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
   // use a useRef so when an action is performed, it reflects automatically rather than waiting for another
   // render to reflect the changes like a useState
@@ -316,135 +318,139 @@ export default function Index() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: "f5f5f5",
-    // justifyContent: "center",
-    // alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 5,
-  },
-  habitButtons: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  habitButton: {
-    marginRight: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  habitButtonLabel: {
-    fontSize: 12,
-    paddingVertical: 0,
-    // paddingHorizontal: 4,
-    fontWeight: "bold",
-  },
-  title: {
-    fontWeight: "bold",
-  },
-  signOutBtn: {
-    fontWeight: "bold",
-  },
-  card: {
-    marginBottom: 18,
-    borderRadius: 18,
-    backgroundColor: "#ece0f3",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  completedCard: {
-    opacity: 0.7,
-    backgroundColor: "#cac8cc",
-  },
-  cardContent: {
-    padding: 20,
-  },
-  cardHeader: {
-    flexDirection: "row",
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 4,
-    color: "#22223b",
-    marginRight: 10,
-  },
-  cardDescription: {
-    fontSize: 15,
-    marginBottom: 16,
-    color: "#6c6c80",
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  cardStreak: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff3e0",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  streakText: {
-    marginLeft: 6,
-    color: "#ff9800",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  cardFreq: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ede7f6",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  freqText: {
-    color: "#7c4dff",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emptyStateText: {
-    color: "#666666",
-  },
-  swipeActionLeft: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "flex-start",
-    backgroundColor: "#4caf50",
-    borderRadius: 18,
-    marginBottom: 18,
-    marginTop: 2,
-    paddingLeft: 16,
-  },
-  swipeActionRight: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "flex-end",
-    backgroundColor: "#e53936",
-    borderRadius: 18,
-    marginBottom: 18,
-    marginTop: 2,
-    paddingRight: 16,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 16,
+      backgroundColor: theme.colors.background,
+      // justifyContent: "center",
+      // alignItems: "center",
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 5,
+    },
+    habitButtons: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginBottom: 12,
+    },
+    habitButton: {
+      marginRight: 10,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    habitButtonLabel: {
+      fontSize: 12,
+      paddingVertical: 0,
+      // paddingHorizontal: 4,
+      fontWeight: "bold",
+    },
+    title: {
+      fontWeight: "bold",
+      color: theme.colors.onSurface,
+    },
+    signOutBtn: {
+      fontWeight: "bold",
+    },
+    card: {
+      marginBottom: 18,
+      borderRadius: 18,
+      borderWidth: theme.dark ? 1 : 0,
+      borderColor: theme.colors.outlinedVariant,
+      backgroundColor: theme.colors.surface,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    completedCard: {
+      opacity: 0.7,
+      backgroundColor: theme.colors.surface,
+    },
+    cardContent: {
+      padding: 20,
+    },
+    cardHeader: {
+      flexDirection: "row",
+    },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      marginBottom: 4,
+      color: theme.colors.onSurface,
+      marginRight: 10,
+    },
+    cardDescription: {
+      fontSize: 15,
+      marginBottom: 16,
+      color: theme.colors.onSurfaceVariant,
+    },
+    cardFooter: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    cardStreak: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#fff3e0",
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    streakText: {
+      marginLeft: 6,
+      color: "#ff9800",
+      fontWeight: "bold",
+      fontSize: 14,
+    },
+    cardFreq: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#ede7f6",
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+    },
+    freqText: {
+      color: "#7c4dff",
+      fontWeight: "bold",
+      fontSize: 14,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    emptyStateText: {
+      color: theme.colors.onSurfaceVariant,
+    },
+    swipeActionLeft: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "flex-start",
+      backgroundColor: "#4caf50",
+      borderRadius: 18,
+      marginBottom: 18,
+      marginTop: 2,
+      paddingLeft: 16,
+    },
+    swipeActionRight: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "flex-end",
+      backgroundColor: "#e53936",
+      borderRadius: 18,
+      marginBottom: 18,
+      marginTop: 2,
+      paddingRight: 16,
+    },
+  });

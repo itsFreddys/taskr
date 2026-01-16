@@ -7,7 +7,7 @@ import {
   FlatList,
   SafeAreaView,
 } from "react-native";
-import { Text, Surface, IconButton } from "react-native-paper";
+import { Text, Surface, IconButton, useTheme } from "react-native-paper";
 
 interface PickerProps {
   visible: boolean;
@@ -23,6 +23,8 @@ export const CustomEmojiPicker = ({
   // 1. Move state INSIDE the component
   const [emoteFav, setEmoteFav] = useState<string[]>(["⭐", "✅"]);
   const [emoteHistory, setEmoteHistory] = useState<string[]>([]);
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
   // 2. Define categories INSIDE so they react to state changes
   const EMOJI_CATEGORIES = [
@@ -119,14 +121,14 @@ export const CustomEmojiPicker = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: "75%",
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#6c6c80",
+    color: theme.colors.onSurfaceVariant,
     marginBottom: 10,
     textTransform: "uppercase",
   },
@@ -162,7 +164,7 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     position: "relative",
   },

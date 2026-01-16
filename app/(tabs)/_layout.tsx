@@ -1,21 +1,32 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Octicons from "@expo/vector-icons/Octicons";
 import { Tabs } from "expo-router";
+import { useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
+  const theme = useTheme();
+
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: "#f5f5f5" },
+        headerStyle: { backgroundColor: theme.colors.background },
+        // headerStyle: { backgroundColor: "#f5f5f5" },
+        headerTitleStyle: {
+          color: theme.colors.onSurface,
+          fontWeight: "bold", // Optional: customize the font weight
+        },
         headerShadowVisible: false,
         tabBarStyle: {
-          backgroundColor: "#f5f5f5",
+          // backgroundColor: "#f5f5f5",
+          backgroundColor: theme.colors.background,
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
         },
-        tabBarActiveTintColor: "#6200ee",
-        tabBarInactiveTintColor: "#666666",
+        // tabBarActiveTintColor: "#6200ee",
+        tabBarActiveTintColor: theme.colors.primary,
+        // tabBarInactiveTintColor: "#666666",
+        tabBarInactiveTintColor: theme.colors.outline,
       }}
     >
       <Tabs.Screen

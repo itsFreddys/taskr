@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTheme } from "react-native-paper";
 
 type MenuItem = {
   label: string;
@@ -28,6 +29,8 @@ export default function CustomMenu({
   anchor,
   position = { top: 50, left: 0 },
 }: Props) {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   return (
     <View>
       {anchor}
@@ -67,26 +70,29 @@ export default function CustomMenu({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-  },
-  menuContainer: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    paddingVertical: 6,
-    width: 180,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  menuItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
-  menuText: {
-    fontSize: 16,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+    },
+    menuContainer: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.dark ? theme.colors.onSurfaceVariant : "#000",
+      borderRadius: 10,
+      paddingVertical: 6,
+      width: 180,
+      shadowColor: theme.dark ? theme.colors.onSurfaceVariant : "#000",
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 5,
+    },
+    menuItem: {
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+    },
+    menuText: {
+      fontSize: 16,
+      color: theme.colors.onSurfaceVariant,
+    },
+  });

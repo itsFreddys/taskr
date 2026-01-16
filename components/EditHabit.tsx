@@ -4,13 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Habit } from "@/types/database.type";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
-import {
-  Modal,
-  SafeAreaView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Modal, StyleSheet, TouchableOpacity, View } from "react-native";
 import {
   Button,
   IconButton,
@@ -26,8 +20,8 @@ type Frequency = (typeof FREQUENCIES)[number];
 
 interface EditHabitProps {
   habit: Habit;
-  visible: boolean; // Add visibility control
-  onClose: () => void; // Add close function
+  visible: boolean;
+  onClose: () => void;
 }
 
 export const EditHabit = ({ habit, visible, onClose }: EditHabitProps) => {
@@ -38,13 +32,15 @@ export const EditHabit = ({ habit, visible, onClose }: EditHabitProps) => {
   const [frequency, setFrequency] = useState<Frequency>(habit.frequency);
   const { user } = useAuth();
   const [error, setError] = useState<string | null>("");
+
   const theme = useTheme();
+  const styles = createStyles(theme);
 
   const handleSave = async () => {
     if (!user) return;
     setError(null);
 
-    // If no changes were made, just close
+    // No-change check to save API calls
     if (
       title === habit.title &&
       description === habit.description &&
@@ -62,23 +58,40 @@ export const EditHabit = ({ habit, visible, onClose }: EditHabitProps) => {
         frequency,
         emote_pic: emojiPic,
       });
-      onClose(); // Close modal after successful save
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Error updating habit");
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error updating habit");
     }
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true}>
-      <SafeAreaView style={styles.modalOverlay}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        {/* Backdrop tap-to-close */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
         <Surface style={styles.modalContent} elevation={5}>
-          {/* Header Section */}
+          {/* Static Handle for visual consistency */}
+          {/* <View style={styles.dragHandleContainer}>
+            <View style={styles.dragHandle} />
+          </View> */}
+
+          {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Edit Task</Text>
             <IconButton icon="close" size={24} onPress={onClose} />
           </View>
 
-          {/* Form Section */}
+          {/* Form Content */}
           <View style={styles.prompts}>
             <CustomEmojiPicker
               visible={emojiPickerVisible}
@@ -98,7 +111,7 @@ export const EditHabit = ({ habit, visible, onClose }: EditHabitProps) => {
                 <Ionicons
                   name="add-circle-outline"
                   size={28}
-                  color="#6c6c80"
+                  color={theme.colors.outline}
                   style={styles.iconButton}
                 />
               </TouchableOpacity>
@@ -111,12 +124,13 @@ export const EditHabit = ({ habit, visible, onClose }: EditHabitProps) => {
               value={title}
               onChangeText={setTitle}
             />
+
             <PaperTextInput
               style={styles.habit_description_input}
               label="Description"
               mode="outlined"
               value={description}
-              multiline={true}
+              multiline
               numberOfLines={5}
               onChangeText={setDescritipion}
             />
@@ -150,101 +164,96 @@ export const EditHabit = ({ habit, visible, onClose }: EditHabitProps) => {
               </Button>
             </View>
 
-            {error && (
-              <Text style={{ color: theme.colors.error, marginTop: 10 }}>
-                {error}
-              </Text>
-            )}
+            {error && <Text style={styles.errorText}>{error}</Text>}
           </View>
         </Surface>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: "90%",
-    padding: 20,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  prompts: {
-    padding: 24,
-  },
-  habit_input: {
-    marginBottom: 14,
-  },
-  habit_description_input: {
-    marginBottom: 14,
-    height: 150,
-    textAlignVertical: "top",
-  },
-  seg_buttons: {
-    marginBottom: 14,
-  },
-  footerButtons: {
-    flexDirection: "row",
-    alignContent: "center",
-    justifyContent: "center",
-    marginTop: 14,
-  },
-  cancel_btn: {
-    // marginTop: 14,
-    marginBottom: 14,
-    width: 110,
-    marginRight: 10,
-    backgroundColor: "#f5f5f5",
-  },
-  add_btn: {
-    // marginTop: 14,
-    width: 110,
-    marginBottom: 14,
-  },
-  //   loginButton: {
-  //     width: 200,
-  //     height: 20,
-  //     backgroundColor: "grey",
-  //     borderRadius: 8,
-  //     textAlign: "center",
-  //   },
-  iconButton: {
-    padding: 0,
-    position: "absolute",
-    bottom: 30,
-    right: -20,
-  },
-  emojiIcon: {
-    fontSize: 120,
-    textAlign: "center",
-    alignSelf: "center",
-    marginVertical: 24,
-  },
-  imageHeader: {
-    flexDirection: "row",
-    alignContent: "center",
-    justifyContent: "center",
-  },
-  imageSelector: {
-    flexDirection: "row",
-    alignContent: "center",
-    justifyContent: "center",
-    marginTop: 30,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
+    },
+    modalContent: {
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      minHeight: "75%",
+      paddingHorizontal: 20,
+      paddingBottom: 40,
+      paddingTop: 20,
+    },
+    dragHandleContainer: {
+      width: "100%",
+      alignItems: "center",
+      paddingVertical: 12,
+    },
+    dragHandle: {
+      width: 40,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: theme.colors.outlineVariant,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    modalTitle: {
+      fontSize: 22,
+      fontWeight: "bold",
+      color: theme.colors.onSurface,
+    },
+    prompts: {
+      paddingTop: 10,
+    },
+    habit_input: {
+      marginBottom: 14,
+    },
+    habit_description_input: {
+      marginBottom: 14,
+      textAlignVertical: "top",
+    },
+    seg_buttons: {
+      marginVertical: 20,
+    },
+    footerButtons: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 12,
+      marginTop: 20,
+    },
+    cancel_btn: {
+      width: 120,
+      borderColor: theme.colors.outline,
+    },
+    add_btn: {
+      width: 120,
+    },
+    emojiIcon: {
+      fontSize: 100,
+      textAlign: "center",
+      marginVertical: 10,
+    },
+    imageHeader: {
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 20,
+    },
+    iconButton: {
+      position: "absolute",
+      bottom: 10,
+      right: -10,
+    },
+    errorText: {
+      color: theme.colors.error,
+      marginTop: 10,
+      textAlign: "center",
+    },
+  });

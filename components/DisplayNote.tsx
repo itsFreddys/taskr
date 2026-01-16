@@ -18,6 +18,7 @@ import {
   Surface,
   Text,
   TextInput,
+  useTheme,
 } from "react-native-paper";
 
 import { useRouter } from "expo-router";
@@ -45,6 +46,8 @@ export const DisplayNote = ({ note }: DisplayNoteProps) => {
   const { user } = useAuth();
   const [noteMenuOpen, setNoteMenuOpen] = useState(false);
   const [noteMenuPosition, setNoteMenuPosition] = useState({ top: 0, left: 0 });
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
   // edit states
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -206,55 +209,70 @@ export const DisplayNote = ({ note }: DisplayNoteProps) => {
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    height: "50%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  modalTitle: { fontSize: 18, fontWeight: "bold" },
-  editInput: {
-    height: 120,
-    textAlignVertical: "top",
-    marginBottom: 20,
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 10,
-  },
-  noteCard: {
-    marginBottom: 18,
-    borderRadius: 10,
-    backgroundColor: "#f5f5f5",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-  },
-  noteContent: { flex: 1, padding: 15, position: "relative" },
-  noteDate: {
-    fontSize: 10,
-    marginBottom: 8,
-    textAlign: "center",
-    color: "#6c6c80",
-  },
-  noteOptionsButton: { alignItems: "flex-end", marginRight: 15, marginTop: 8 },
-  noteDescription: { fontSize: 15, marginVertical: 10, color: "#6c6c80" },
-  noteFooter: { textAlign: "right", fontSize: 10, color: "#6c6c80" },
-  menuAnchorContainer: { position: "absolute", top: 0, right: 0, zIndex: 10 },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
+    },
+    modalContent: {
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      height: "50%",
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    modalTitle: { fontSize: 18, fontWeight: "bold" },
+    editInput: {
+      height: 120,
+      textAlignVertical: "top",
+      marginBottom: 20,
+    },
+    modalActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 10,
+    },
+    noteCard: {
+      marginBottom: 18,
+      borderRadius: 10,
+      borderWidth: theme.dark ? 1 : 0,
+      borderColor: theme.colors.outlinedVariant,
+      backgroundColor: theme.colors.surface,
+      elevation: 5,
+      shadowColor: theme.dark ? "#000" : "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: theme.dark ? 0.3 : 0.1,
+      shadowRadius: 5,
+    },
+    noteContent: { flex: 1, padding: 15, position: "relative" },
+    noteDate: {
+      fontSize: 10,
+      marginBottom: 8,
+      textAlign: "center",
+      color: theme.colors.onSurfaceVariant,
+    },
+    noteOptionsButton: {
+      alignItems: "flex-end",
+      marginRight: 15,
+      marginTop: 8,
+    },
+    noteDescription: {
+      fontSize: 15,
+      marginVertical: 10,
+      color: theme.colors.onSurfaceVariant,
+    },
+    noteFooter: {
+      textAlign: "right",
+      fontSize: 10,
+      color: theme.colors.onSurfaceVariant,
+    },
+    menuAnchorContainer: { position: "absolute", top: 0, right: 0, zIndex: 10 },
+  });

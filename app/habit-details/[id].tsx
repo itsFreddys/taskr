@@ -1,6 +1,7 @@
 import CustomMenu from "@/components/CustomMenu";
 import { DisplayNote } from "@/components/DisplayNote";
 import { EditHabit } from "@/components/EditHabit";
+import { GlobalSettingsMenu } from "@/components/GlobalSettingsMenu";
 import {
   client,
   DATABASE_ID,
@@ -11,7 +12,6 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { Habit, Note } from "@/types/database.type";
 import { Ionicons } from "@expo/vector-icons";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import SimpleLineIcons from "@expo/vector-icons/SimpleLineIcons";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
@@ -56,6 +56,7 @@ export default function HabitDetailsScreen() {
     left: 0,
   });
   const theme = useTheme();
+  const styles = createStyles(theme);
 
   // --- Notes States
   const [newNote, setNewNote] = useState<string>("");
@@ -147,15 +148,21 @@ export default function HabitDetailsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: "Habit Details",
+      headerStyle: { backgroundColor: theme.colors.background },
+      headerTitleStyle: {
+        color: theme.colors.onSurface,
+        fontWeight: "bold",
+      },
       // --- Right Side (Menu) ---
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => Alert.alert("Settings")}
-          style={styles.headerIconContainer}
-        >
-          <MaterialIcons name="menu" size={24} color="#22223b" />
-        </TouchableOpacity>
-      ),
+      headerRight: () => <GlobalSettingsMenu />,
+      //   (
+      //   <TouchableOpacity
+      //     onPress={() => Alert.alert("Settings")}
+      //     style={styles.headerIconContainer}
+      //   >
+      //     <MaterialIcons name="menu" size={24} color="#22223b" />
+      //   </TouchableOpacity>
+      // )
       // --- Left Side (Back) ---
       headerLeft: () => (
         <TouchableOpacity
@@ -228,7 +235,11 @@ export default function HabitDetailsScreen() {
                     setHabitMenuOpen(true);
                   }}
                 >
-                  <SimpleLineIcons name="options" size={18} color="#6c6c80" />
+                  <SimpleLineIcons
+                    name="options"
+                    size={18}
+                    color={theme.colors.onSurfaceVariant}
+                  />
                 </TouchableOpacity>
               }
               items={[
@@ -288,7 +299,11 @@ export default function HabitDetailsScreen() {
               Notes.map((item) => <DisplayNote key={item.$id} note={item} />)
             ) : (
               <Text
-                style={{ textAlign: "center", marginTop: 20, color: "#6c6c80" }}
+                style={{
+                  textAlign: "center",
+                  marginTop: 20,
+                  color: theme.colors.onSurfaceVariant,
+                }}
               >
                 No notes yet. Add one above!
               </Text>
@@ -316,51 +331,69 @@ export default function HabitDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  headerIconContainer: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    // We remove backgroundColor and borderRadius to make it "invisible"
-    marginHorizontal: 8, // Space from the screen edges
-  },
-  container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 24 },
-  segment: { marginTop: 20 },
-  menuAnchorContainer: { position: "absolute", top: 0, right: 0, zIndex: 10 },
-  emojiIcon: { fontSize: 80, textAlign: "center", marginVertical: 20 },
-  habitHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  habitTitle: { fontSize: 26, fontWeight: "bold", color: "#22223b" },
-  habitFreq: {
-    marginLeft: 15,
-    backgroundColor: "#ede7f6",
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    height: 25,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  habitFreqText: {
-    textAlign: "center",
-    justifyContent: "center",
-    color: "#7c4dff",
-    fontWeight: "bold",
-    textTransform: "capitalize",
-  },
-  habitDescription: { fontSize: 18, color: "#6c6c80", marginBottom: 15 },
-  statsRow: { gap: 5 },
-  notesTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginTop: 25,
-    marginBottom: 10,
-  },
-  noteInput: { marginBottom: 15 },
-  innerNotesScroll: { height: 320 },
-  bottomDelete: {
-    alignSelf: "center",
-    marginTop: 40,
-    marginBottom: 20,
-    width: 150,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    headerIconContainer: {
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+      // We remove backgroundColor and borderRadius to make it "invisible"
+      marginHorizontal: 8, // Space from the screen edges
+    },
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingHorizontal: 24,
+    },
+    segment: { marginTop: 20 },
+    menuAnchorContainer: { position: "absolute", top: 0, right: 0, zIndex: 10 },
+    emojiIcon: { fontSize: 80, textAlign: "center", marginVertical: 20 },
+    habitHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    habitTitle: {
+      fontSize: 26,
+      fontWeight: "bold",
+      color: theme.colors.onSurface,
+    },
+    habitFreq: {
+      marginLeft: 15,
+      backgroundColor: "#ede7f6",
+      paddingHorizontal: 10,
+      borderRadius: 12,
+      height: 25,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    habitFreqText: {
+      textAlign: "center",
+      justifyContent: "center",
+      color: "#7c4dff",
+      fontWeight: "bold",
+      textTransform: "capitalize",
+    },
+    habitDescription: {
+      fontSize: 18,
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: 15,
+    },
+    statsRow: { gap: 5 },
+    notesTitle: {
+      fontSize: 22,
+      fontWeight: "bold",
+      marginTop: 25,
+      marginBottom: 10,
+    },
+    noteInput: { marginBottom: 15 },
+    innerNotesScroll: { height: 320 },
+    bottomDelete: {
+      alignSelf: "center",
+      marginTop: 40,
+      marginBottom: 20,
+      width: 150,
+      color: theme.colors.error,
+    },
+  });

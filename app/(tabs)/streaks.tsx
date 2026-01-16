@@ -1,3 +1,4 @@
+import { Task } from "@/types/database.type";
 import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -7,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { IconButton, Surface, Text } from "react-native-paper";
+import { IconButton, Surface, Text, useTheme } from "react-native-paper";
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = width / 6; // 6 items visible at a time
@@ -18,6 +19,10 @@ export default function Streakscreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const flatListRef = useRef<FlatList>(null);
   const today = startOfDay(new Date());
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
   // 1. Generate Dates with Month Dividers
   const calendarData = useMemo(() => {
@@ -93,6 +98,42 @@ export default function Streakscreen() {
     );
   };
 
+  const renderTasksList = () => {
+    // need to retrieve the tasks from api for the current date
+
+    if (tasks && tasks.length > 0) {
+      return (
+        <View>
+          <Text>Some tasks</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyCard}>
+        <Text style={{ color: "#aaa" }}>No habits tracked for this date.</Text>
+      </View>
+    );
+  };
+
+  const renderSchedule = () => {
+    return (
+      <View style={styles.taskList}>
+        <Text style={styles.listTitle}>
+          {/* ✅ FIXED: Use isSameDay(selectedDate, today) instead of the missing variable */}
+          {isSameDay(selectedDate, today)
+            ? "Today Schedule"
+            : format(selectedDate, "eeee, MMM do") + " Schedule"}
+        </Text>
+        <View style={styles.emptyCard}>
+          <Text style={{ color: "#aaa" }}>
+            No tasks in Schedule for this date.
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.calendarHeader}>
@@ -144,71 +185,81 @@ export default function Streakscreen() {
 }
 
 // ... (styles remain the same)
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  calendarHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 5,
-  },
-  currentMonthDisplay: { fontSize: 18, fontWeight: "bold", color: "#22223b" },
-  calendarStrip: {
-    // paddingVertical: 5,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  dateCard: {
-    width: ITEM_WIDTH,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 16,
-    marginHorizontal: 4,
-    backgroundColor: "#fff",
-  },
-  selectedCard: { backgroundColor: "#7c4dff" },
-  whiteText: { color: "#fff" },
-  dayText: { fontSize: 11, color: "#999", textTransform: "uppercase" },
-  dateText: { fontSize: 18, fontWeight: "bold" },
-  todayIndicator: {
-    position: "absolute",
-    bottom: 3,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#7c4dff",
-  },
-  monthDivider: {
-    width: ITEM_WIDTH,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  verticalLine: {
-    position: "absolute",
-    left: 0,
-    height: "60%",
-    width: 1,
-    backgroundColor: "#e0e0e0",
-  },
-  monthLabel: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#7c4dff",
-    transform: [{ rotate: "-90deg" }], // Vertical Month Text
-  },
-  taskList: { flex: 1, padding: 20 },
-  listTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
-  emptyCard: {
-    flex: 1,
-    borderStyle: "dashed",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    calendarHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingTop: 5,
+    },
+    currentMonthDisplay: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.colors.primary,
+    },
+    calendarStrip: {
+      // paddingVertical: 5,
+      paddingBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.surface,
+    },
+    dateCard: {
+      width: ITEM_WIDTH - 5,
+      height: 50,
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: 16,
+      marginHorizontal: 4,
+      backgroundColor: theme.colors.surface,
+    },
+    selectedCard: { backgroundColor: theme.colors.primary },
+    whiteText: { color: theme.colors.onSurface },
+    dayText: {
+      fontSize: 11,
+      fontWeight: "bold",
+      color: theme.colors.onSurfaceVariant,
+      textTransform: "uppercase",
+    },
+    dateText: { fontSize: 18, fontWeight: "bold" },
+    todayIndicator: {
+      position: "absolute",
+      bottom: 3,
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.primary,
+    },
+    monthDivider: {
+      width: ITEM_WIDTH,
+      justifyContent: "center",
+      alignItems: "center",
+      position: "relative",
+    },
+    verticalLine: {
+      position: "absolute",
+      left: 0,
+      height: "60%",
+      width: 1,
+      backgroundColor: theme.colors.primary,
+    },
+    monthLabel: {
+      fontSize: 10,
+      fontWeight: "bold",
+      color: theme.colors.primary,
+      transform: [{ rotate: "-90deg" }], // Vertical Month Text
+    },
+    taskList: { flex: 1, padding: 20 },
+    listTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
+    emptyCard: {
+      flex: 1,
+      borderStyle: "dashed",
+      borderWidth: 1,
+      borderColor: "#ccc",
+      borderRadius: 20,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+  });
