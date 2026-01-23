@@ -1,5 +1,8 @@
 import { darkTheme, lightTheme } from "@/constants/Themes";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { GlobalSettingsMenu } from "@/components/GlobalSettingsMenu";
+import { CustomHeader } from "@/components/CustomHeader";
+
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
@@ -30,32 +33,32 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-
 export default function RootLayout() {
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-
-      <AuthProvider>
+        <AuthProvider>
           <SafeAreaProvider>
             <RouteGuard>
-              <Stack>
+              {/* <GlobalSettingsMenu /> */}
+              <Stack
+                screenOptions={{
+                  header: (props) => <CustomHeader {...props} />,
+                }}
+              >
                 <Stack.Screen name="auth" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
                 <Stack.Screen
-                  name="habit-details/[id]"
+                  name="task-details/[id]"
                   options={{
-                    headerShown: true,
-                    headerBackButtonDisplayMode: "generic",
-                    title: "Habit Details",
+                    title: "Task Details",
                   }}
-                  />
+                />
               </Stack>
             </RouteGuard>
           </SafeAreaProvider>
-      </AuthProvider>
-                  </ThemeProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

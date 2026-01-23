@@ -9,7 +9,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { Habit, HabitCompletion } from "@/types/database.type";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { ID, Query } from "react-native-appwrite";
@@ -24,6 +24,9 @@ export default function Index() {
     "all" | "active" | "completed"
   >("all");
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // theme presets
   const theme = useTheme();
   const styles = createStyles(theme);
 
@@ -198,7 +201,7 @@ export default function Index() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title} variant="headlineSmall">
-          Today's Habits
+          Today's Tasks
         </Text>
         <Button
           labelStyle={styles.signOutBtn}
@@ -273,7 +276,7 @@ export default function Index() {
               }}
             >
               <Pressable
-                onPress={() => router.push(`/habit-details/${habit.$id}`)}
+                onPress={() => router.push(`/task-details/${habit.$id}`)}
               >
                 <Surface
                   style={[
@@ -326,6 +329,14 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
       // justifyContent: "center",
       // alignItems: "center",
+    },
+    headerIconContainer: {
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+      // We remove backgroundColor and borderRadius to make it "invisible"
+      marginHorizontal: 8, // Space from the screen edges
     },
     header: {
       flexDirection: "row",

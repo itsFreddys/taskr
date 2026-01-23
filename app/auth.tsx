@@ -12,6 +12,7 @@ export default function AuthScreen() {
   const [error, setError] = useState<string | null>("");
 
   const theme = useTheme();
+  const styles = createStyles(theme);
 
   const { signIn, signUp } = useAuth();
   const router = useRouter();
@@ -119,10 +120,10 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: theme.colors.background,
     justifyContent: "center",
     // paddingHorizontal: 14,
     // alignItems: "center",
@@ -136,6 +137,7 @@ const styles = StyleSheet.create({
   },
   title: {
     // fontSize: 24,
+    color: theme.colors.onSurface,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 24,

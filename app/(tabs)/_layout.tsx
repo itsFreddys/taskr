@@ -1,3 +1,4 @@
+import { GlobalSettingsMenu } from "@/components/GlobalSettingsMenu";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Octicons from "@expo/vector-icons/Octicons";
 import { Tabs } from "expo-router";
@@ -9,13 +10,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: theme.colors.background },
-        // headerStyle: { backgroundColor: "#f5f5f5" },
-        headerTitleStyle: {
-          color: theme.colors.onSurface,
-          fontWeight: "bold", // Optional: customize the font weight
-        },
-        headerShadowVisible: false,
+        headerShown: false,
+
         tabBarStyle: {
           // backgroundColor: "#f5f5f5",
           backgroundColor: theme.colors.background,
