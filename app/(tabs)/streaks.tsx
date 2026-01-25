@@ -1,6 +1,7 @@
 import { Task } from "@/types/database.type";
 import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
 import React, { useMemo, useRef, useState } from "react";
+import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import {
   Dimensions,
   FlatList,
@@ -8,18 +9,54 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { IconButton, Surface, Text, useTheme } from "react-native-paper";
+import { IconButton, Surface, Text, useTheme, List } from "react-native-paper";
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = width / 6; // 6 items visible at a time
 
 // ... (imports remain the same)
+// ✅ Define the Navigator
+const Tab = createMaterialTopTabNavigator();
+
+// ✅ Create mini-components for the content
+function TasksTab() {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+  return (
+    <>
+      {/* Tasks List */}
+      <View style={styles.taskList}>
+        <View style={styles.emptyCard}>
+          <Text style={{ color: "#aaa" }}>
+            No habits tracked for this date.
+          </Text>
+        </View>
+      </View>
+    </>
+  );
+}
+
+function ScheduleTab() {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+  return (
+    <>
+      {/* Tasks List */}
+      <View style={styles.taskList}>
+        <View style={styles.emptyCard}>
+          <Text style={{ color: "#aaa" }}>No Schedule, coming soon.</Text>
+        </View>
+      </View>
+    </>
+  );
+}
 
 export default function Streakscreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const flatListRef = useRef<FlatList>(null);
   const today = startOfDay(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [headerOptionSelected, setHeaderOptionSelected] = useState(true);
 
   const theme = useTheme();
   const styles = createStyles(theme);
@@ -139,7 +176,9 @@ export default function Streakscreen() {
       <View style={styles.calendarHeader}>
         <View>
           <Text style={styles.currentMonthDisplay}>
-            {format(selectedDate, "MMMM yyyy")}
+            {isSameDay(selectedDate, today)
+              ? "Today"
+              : format(selectedDate, "eeee, MMM do")}
           </Text>
         </View>
         <IconButton
@@ -166,20 +205,34 @@ export default function Streakscreen() {
         />
       </View>
 
-      {/* Tasks List */}
-      <View style={styles.taskList}>
-        <Text style={styles.listTitle}>
-          {/* ✅ FIXED: Use isSameDay(selectedDate, today) instead of the missing variable */}
-          {isSameDay(selectedDate, today)
-            ? "Today"
-            : format(selectedDate, "eeee, MMM do")}
-        </Text>
-        <View style={styles.emptyCard}>
-          <Text style={{ color: "#aaa" }}>
-            No habits tracked for this date.
-          </Text>
-        </View>
-      </View>
+      {/* <View style={{ flex: 1 }}> */}
+
+      {/* 🟢 The Top Tab Navigator */}
+      <Tab.Navigator
+        screenOptions={{
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+          tabBarIndicatorStyle: {
+            backgroundColor: theme.colors.primary,
+            height: 3, // 🟢 Professional thick indicator
+            borderRadius: 3,
+          },
+          tabBarStyle: {
+            backgroundColor: theme.colors.background,
+            elevation: 0, // 🟢 Remove shadow for a flat look
+            shadowOpacity: 0,
+          },
+          tabBarLabelStyle: {
+            fontSize: 14,
+            fontWeight: "bold",
+            textTransform: "capitalize",
+          },
+        }}
+      >
+        <Tab.Screen name="Tasks" component={TasksTab} />
+        <Tab.Screen name="Schedule" component={ScheduleTab} />
+      </Tab.Navigator>
+      {/* </View> */}
     </View>
   );
 }
@@ -196,9 +249,9 @@ const createStyles = (theme: any) =>
       paddingTop: 5,
     },
     currentMonthDisplay: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: "bold",
-      color: theme.colors.primary,
+      // color: theme.colors.primary,
     },
     calendarStrip: {
       // paddingVertical: 5,
