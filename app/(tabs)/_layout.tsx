@@ -1,4 +1,3 @@
-import { GlobalSettingsMenu } from "@/components/GlobalSettingsMenu";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Octicons from "@expo/vector-icons/Octicons";
 import { Tabs } from "expo-router";
@@ -59,11 +58,7 @@ export default function TabsLayout() {
           title: "Add Habit",
           tabBarIcon: ({ color, size }) => (
             // <FontAwesome name="home" size={24} color={color} />
-            <MaterialCommunityIcons
-              name="plus-circle"
-              size={size}
-              color={color}
-            />
+            <MaterialCommunityIcons name="apps" size={size} color={color} />
           ),
         }}
       />

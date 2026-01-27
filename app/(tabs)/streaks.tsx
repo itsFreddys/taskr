@@ -1,53 +1,90 @@
 import { Task } from "@/types/database.type";
-import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
-import React, { useMemo, useRef, useState } from "react";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
+import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
+  Animated,
   Dimensions,
   FlatList,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import { IconButton, Surface, Text, useTheme, List } from "react-native-paper";
+import {
+  FAB,
+  IconButton,
+  Searchbar,
+  Surface,
+  Text,
+  useTheme,
+} from "react-native-paper";
 
 const { width } = Dimensions.get("window");
+const { height: SCREEN_HEIGHT } = Dimensions.get("window"); // ✅ Get screen height
 const ITEM_WIDTH = width / 6; // 6 items visible at a time
+const VAR_HEADER = 118;
 
 // ... (imports remain the same)
 // ✅ Define the Navigator
 const Tab = createMaterialTopTabNavigator();
 
 // ✅ Create mini-components for the content
-function TasksTab() {
+function TasksTab({ onScroll, headerHeight }: any) {
   const theme = useTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, headerHeight);
+
+  // ✅ The Spacer needs to be the Header (118) + Tab Bar (48)
+  const TOTAL_SPACER_HEIGHT = headerHeight + 48;
+  const EMPTY_STATE_HEIGHT = SCREEN_HEIGHT - TOTAL_SPACER_HEIGHT - 100;
+
   return (
-    <>
-      {/* Tasks List */}
-      <View style={styles.taskList}>
-        <View style={styles.emptyCard}>
-          <Text style={{ color: "#aaa" }}>
-            No habits tracked for this date.
-          </Text>
+    <Animated.FlatList
+      data={[]}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      contentContainerStyle={{
+        paddingBottom: 5,
+        minHeight: SCREEN_HEIGHT,
+      }}
+      // 🟢 This invisible block pushes the list down past the header AND tabs
+      ListHeaderComponent={<View style={{ height: TOTAL_SPACER_HEIGHT }} />}
+      ListEmptyComponent={
+        <View style={[styles.emptyCard, { height: EMPTY_STATE_HEIGHT }]}>
+          <Text style={{ color: "#aaa" }}>No habits tracked.</Text>
         </View>
-      </View>
-    </>
+      }
+      renderItem={null}
+    />
   );
 }
 
-function ScheduleTab() {
+function ScheduleTab({ onScroll, headerHeight }: any) {
   const theme = useTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, headerHeight);
+
+  // ✅ The Spacer needs to be the Header (118) + Tab Bar (48)
+  const TOTAL_SPACER_HEIGHT = headerHeight + 48;
+  const EMPTY_STATE_HEIGHT = SCREEN_HEIGHT - TOTAL_SPACER_HEIGHT - 100;
+
   return (
-    <>
-      {/* Tasks List */}
-      <View style={styles.taskList}>
-        <View style={styles.emptyCard}>
-          <Text style={{ color: "#aaa" }}>No Schedule, coming soon.</Text>
+    <Animated.FlatList
+      data={[]}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      contentContainerStyle={{
+        paddingBottom: 5,
+        minHeight: SCREEN_HEIGHT,
+      }}
+      // 🟢 This invisible block pushes the list down past the header AND tabs
+      ListHeaderComponent={<View style={{ height: TOTAL_SPACER_HEIGHT }} />}
+      ListEmptyComponent={
+        <View style={[styles.emptyCard, { height: EMPTY_STATE_HEIGHT }]}>
+          <Text style={{ color: "#aaa" }}>No Schedule tracked.</Text>
         </View>
-      </View>
-    </>
+      }
+      renderItem={null}
+    />
   );
 }
 
@@ -57,11 +94,37 @@ export default function Streakscreen() {
   const today = startOfDay(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [headerOptionSelected, setHeaderOptionSelected] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchToggle, setSearchToggle] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(VAR_HEADER);
+
+  //Animated value for scroll position
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const theme = useTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, headerHeight);
 
-  // 1. Generate Dates with Month Dividers
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      jumpToToday();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Function to pass scroll events from children to the parent
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true }
+  );
+
+  // Header Animation Calculations
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, headerHeight],
+    outputRange: [0, -headerHeight],
+    extrapolate: "clamp",
+  });
+
+  // Generate Dates with Month Dividers
   const calendarData = useMemo(() => {
     const data = [];
     for (let i = -14; i <= 30; i++) {
@@ -173,80 +236,146 @@ export default function Streakscreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.calendarHeader}>
-        <View>
-          <Text style={styles.currentMonthDisplay}>
-            {isSameDay(selectedDate, today)
-              ? "Today"
-              : format(selectedDate, "eeee, MMM do")}
-          </Text>
+      <Animated.View
+        style={[
+          styles.fixedHeader,
+          { transform: [{ translateY: headerTranslateY }] },
+        ]}
+      >
+        <View style={styles.calendarHeader}>
+          <View>
+            <Text style={styles.currentMonthDisplay}>
+              {isSameDay(selectedDate, today)
+                ? "Today"
+                : format(selectedDate, "eeee, MMM do")}
+            </Text>
+          </View>
+          <View style={styles.calendarHeaderButtons}>
+            <IconButton
+              icon="calendar-today"
+              onPress={jumpToToday}
+              containerColor="#ede7f6"
+            />
+            <IconButton
+              icon={searchToggle ? "magnify-minus" : "magnify"}
+              onPress={() => {
+                setHeaderHeight(searchToggle ? VAR_HEADER : VAR_HEADER + 60);
+                setSearchToggle((prev) => !prev);
+              }}
+              containerColor="#ede7f6"
+            />
+          </View>
         </View>
-        <IconButton
-          icon="calendar-today"
-          onPress={jumpToToday}
-          containerColor="#ede7f6"
-        />
-      </View>
 
-      <View style={styles.calendarStrip}>
-        <FlatList
-          ref={flatListRef}
-          data={calendarData}
-          renderItem={renderItem}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          initialScrollIndex={todayIndex}
-          getItemLayout={(_, index) => ({
-            length: ITEM_WIDTH + 8, // Added margin (4+4) to calculation
-            offset: (ITEM_WIDTH + 8) * index,
-            index,
-          })}
-        />
-      </View>
+        <View style={styles.calendarStrip}>
+          <FlatList
+            ref={flatListRef}
+            data={calendarData}
+            renderItem={renderItem}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            initialScrollIndex={todayIndex}
+            getItemLayout={(_, index) => ({
+              length: ITEM_WIDTH + 8, // Added margin (4+4) to calculation
+              offset: (ITEM_WIDTH + 8) * index,
+              index,
+            })}
+          />
+        </View>
 
-      {/* <View style={{ flex: 1 }}> */}
+        {searchToggle && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+            <Searchbar
+              placeholder="Search everything..."
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+              style={styles.globalSearch}
+              inputStyle={styles.globalInput}
+              mode="bar" // 🟢 Gives it a modern, rounded look
+              autoFocus={true}
+            />
+          </View>
+        )}
+      </Animated.View>
 
       {/* 🟢 The Top Tab Navigator */}
-      <Tab.Navigator
-        screenOptions={{
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
-          tabBarIndicatorStyle: {
-            backgroundColor: theme.colors.primary,
-            height: 3, // 🟢 Professional thick indicator
-            borderRadius: 3,
-          },
-          tabBarStyle: {
-            backgroundColor: theme.colors.background,
-            elevation: 0, // 🟢 Remove shadow for a flat look
-            shadowOpacity: 0,
-          },
-          tabBarLabelStyle: {
-            fontSize: 14,
-            fontWeight: "bold",
-            textTransform: "capitalize",
-          },
-        }}
-      >
-        <Tab.Screen name="Tasks" component={TasksTab} />
-        <Tab.Screen name="Schedule" component={ScheduleTab} />
-      </Tab.Navigator>
-      {/* </View> */}
+      <View style={{ flex: 1 }}>
+        <Tab.Navigator
+          screenOptions={{
+            tabBarActiveTintColor: theme.colors.primary,
+            tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+            tabBarIndicatorStyle: {
+              backgroundColor: theme.colors.primary,
+              height: 3, // 🟢 Professional thick indicator
+              borderRadius: 3,
+            },
+            tabBarStyle: {
+              backgroundColor: theme.colors.background,
+              elevation: 0, // 🟢 Remove shadow for a flat look
+              shadowOpacity: 0,
+              position: "absolute",
+              top: headerHeight,
+              left: 0,
+              right: 0,
+              zIndex: 11,
+              // marginTop: headerHeight,
+              transform: [{ translateY: headerTranslateY }],
+            },
+            tabBarContentContainerStyle: {
+              height: 48, // Standard tab bar height
+            },
+            tabBarLabelStyle: {
+              fontSize: 14,
+              fontWeight: "bold",
+              textTransform: "capitalize",
+            },
+          }}
+        >
+          <Tab.Screen name="Tasks">
+            {() => <TasksTab onScroll={onScroll} headerHeight={headerHeight} />}
+          </Tab.Screen>
+          <Tab.Screen name="Schedule">
+            {() => (
+              <ScheduleTab onScroll={onScroll} headerHeight={headerHeight} />
+            )}
+          </Tab.Screen>
+        </Tab.Navigator>
+      </View>
+      <FAB
+        icon="plus"
+        style={styles.fab}
+        onPress={() => Alert.alert("Adding new task")}
+        color="white"
+      />
     </View>
   );
 }
 
 // ... (styles remain the same)
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, v_height: number) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
+    fixedHeader: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 12,
+      backgroundColor: theme.colors.background,
+      height: v_height, // Match HEADER_HEIGHT variable
+    },
     calendarHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 20,
       paddingTop: 5,
+    },
+    calendarHeaderButtons: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
     currentMonthDisplay: {
       fontSize: 20,
@@ -304,15 +433,52 @@ const createStyles = (theme: any) =>
       color: theme.colors.primary,
       transform: [{ rotate: "-90deg" }], // Vertical Month Text
     },
-    taskList: { flex: 1, padding: 20 },
+    // taskList: { flex: 1, padding: 20 },
     listTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
     emptyCard: {
       flex: 1,
+      margin: 16,
       borderStyle: "dashed",
       borderWidth: 1,
       borderColor: "#ccc",
       borderRadius: 20,
       justifyContent: "center",
       alignItems: "center",
+      alignSelf: "stretch",
+    },
+    navHeaderOptions: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    fab: {
+      position: "absolute",
+      margin: 16,
+      right: 0,
+      bottom: 0,
+      backgroundColor: theme.colors.primary, // 🟢 Professional brand color
+      borderRadius: 28,
+    },
+    searchBar: {
+      marginBottom: 15,
+      backgroundColor: theme.colors.surfaceVariant, // 🟢 Subtle grey background
+      borderRadius: 12,
+    },
+    globalSearch: {
+      backgroundColor: theme.colors.surfaceVariant,
+      elevation: 0,
+      height: 45,
+      borderRadius: 10,
+    },
+    globalInput: {
+      // 🟢 This targets the actual text field inside
+      fontSize: 14,
+      minHeight: 0, // 🟢 Prevents default heights from pushing text down
+      alignSelf: "center",
+      paddingVertical: 0, // 🟢 Removes internal padding that causes offsets
+    },
+    taskList: {
+      flex: 1,
+      padding: 15, // 🟢 Slightly tighter padding for search screens
     },
   });

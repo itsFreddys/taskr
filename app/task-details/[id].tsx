@@ -145,36 +145,6 @@ export default function HabitDetailsScreen() {
     ]);
   };
 
-  // useLayoutEffect(() => {
-  //   navigation.setOptions({
-  //     title: "Task Details",
-  //     headerStyle: { backgroundColor: theme.colors.background },
-  //     headerTitleStyle: {
-  //       color: theme.colors.onSurface,
-  //       fontWeight: "bold",
-  //     },
-  //     // --- Right Side (Menu) ---
-  //     headerRight: () => <GlobalSettingsMenu />,
-  //     //   (
-  //     //   <TouchableOpacity
-  //     //     onPress={() => Alert.alert("Settings")}
-  //     //     style={styles.headerIconContainer}
-  //     //   >
-  //     //     <MaterialIcons name="menu" size={24} color="#22223b" />
-  //     //   </TouchableOpacity>
-  //     // )
-  //     // --- Left Side (Back) ---
-  //     headerLeft: () => (
-  //       <TouchableOpacity
-  //         onPress={() => router.back()}
-  //         style={styles.headerIconContainer}
-  //       >
-  //         <Ionicons name="chevron-back-outline" size={24} color="#22223b" />
-  //       </TouchableOpacity>
-  //     ),
-  //   });
-  // }, [navigation]);
-
   if (isLoading)
     return (
       <View style={styles.container}>
