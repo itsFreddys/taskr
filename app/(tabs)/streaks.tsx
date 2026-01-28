@@ -1,9 +1,9 @@
+import { CreateTask } from "@/components/CreateTask";
 import { Task } from "@/types/database.type";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -51,7 +51,7 @@ function TasksTab({ onScroll, headerHeight }: any) {
       ListHeaderComponent={<View style={{ height: TOTAL_SPACER_HEIGHT }} />}
       ListEmptyComponent={
         <View style={[styles.emptyCard, { height: EMPTY_STATE_HEIGHT }]}>
-          <Text style={{ color: "#aaa" }}>No habits tracked.</Text>
+          <Text style={{ color: "#aaa" }}>No Tasks tracked.</Text>
         </View>
       }
       renderItem={null}
@@ -93,10 +93,12 @@ export default function Streakscreen() {
   const flatListRef = useRef<FlatList>(null);
   const today = startOfDay(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [headerOptionSelected, setHeaderOptionSelected] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchToggle, setSearchToggle] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(VAR_HEADER);
+
+  // visibility for create modal
+  const [createVisible, setCreateVisible] = useState(false);
 
   //Animated value for scroll position
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -345,8 +347,14 @@ export default function Streakscreen() {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => Alert.alert("Adding new task")}
+        onPress={() => setCreateVisible(true)}
         color="white"
+      />
+
+      <CreateTask
+        visible={createVisible}
+        onClose={() => setCreateVisible(false)}
+        selectedDate={selectedDate}
       />
     </View>
   );
