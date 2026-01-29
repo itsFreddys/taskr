@@ -1,6 +1,8 @@
 import { CustomEmojiPicker } from "@/components/CustomEmojiPicker";
+import { CustomTimerPicker } from "@/components/CustomTimerPicker";
 import { DATABASE_ID, databases, TASKS_TABLE_ID } from "@/lib/appwrite"; // Update with your actual task collection ID
 import { useAuth } from "@/lib/auth-context";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useState } from "react";
 import {
   Modal,
@@ -20,12 +22,22 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
+import { TimeSelector } from "./TimeSelector";
 
 interface CreateTaskProps {
   visible: boolean;
   onClose: () => void;
   selectedDate: Date; // 🟢 Passed from your calendar
 }
+
+const formatSecondsToTime = (totalSeconds: number) => {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  if (h > 0) return `${h}:${m < 10 ? "0" + m : m}:${s < 10 ? "0" + s : s}`;
+  return `${m}:${s < 10 ? "0" + s : s}`;
+};
 
 export const CreateTask = ({
   visible,
@@ -48,20 +60,48 @@ export const CreateTask = ({
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>([]);
 
   // schedule logic
-  const [startHour, setStartHour] = useState("10")
-  const [startMin, setStartMin] = useState("00")
-  const [startAmPm, setStartAmPm] = useState("AM")  
-  const [endHour, setEndHour] = useState("11")
-  const [endMin, setEndMin] = useState("00")
-  const [endAmPm, setEndAmPm] = useState("AM")
+  const [startHour, setStartHour] = useState("10");
+  const [startMin, setStartMin] = useState("00");
+  const [startAmPm, setStartAmPm] = useState("AM");
+  const [endHour, setEndHour] = useState("11");
+  const [endMin, setEndMin] = useState("00");
+  const [endAmPm, setEndAmPm] = useState("AM");
 
   // timers logic
   const [timers, setTimers] = useState<string[]>([]);
   const [isCustomTimer, setIsCustomTimer] = useState(false);
+  const [timerHour, setTimerHour] = useState("00");
+  const [timerMin, setTimerMin] = useState("00");
+  const [timerSec, setTimerSec] = useState("00");
+  const [timerOptions, setTimerOptions] = useState<string[]>([
+    "0:30",
+    "1:00",
+    "2:00",
+    "5:00",
+    "10:00",
+    "15:00",
+    "20:00",
+    "30:00",
+    "40:00",
+    "50:00",
+    "60:00",
+  ]);
 
   const [isAllDay, setIsAllDay] = useState(true);
   const [hasTimeLimit, setHasTimeLimit] = useState(false);
   const [duration, setDuration] = useState("30");
+
+  const handleAddCustomTimer = (seconds: number) => {
+    const formattedTime = formatSecondsToTime(seconds);
+
+    // Add to the START of the options list
+    setTimerOptions((prev) => [formattedTime, ...prev]);
+
+    // Auto-select this specific time string
+    setTimers((prev) => [...prev, formattedTime]);
+
+    setIsCustomTimer(false); // Hide the picker
+  };
 
   const handleCreate = async () => {
     if (!user || !title) return;
@@ -132,6 +172,12 @@ export const CreateTask = ({
             <View style={styles.center}>
               <TouchableOpacity onPress={() => setEmojiPickerVisible(true)}>
                 <Text style={styles.emojiDisplay}>{emojiPic}</Text>
+                <Ionicons
+                  name="add-circle-outline"
+                  size={28}
+                  color="#6c6c80"
+                  style={styles.iconButton}
+                />
               </TouchableOpacity>
             </View>
 
@@ -156,39 +202,43 @@ export const CreateTask = ({
                     <Text style={{ fontSize: 16, fontWeight: "400" }}>
                       All Day
                     </Text>
-                    <Switch value={isAllDay} onValueChange={setIsAllDay} />
+                    <Switch
+                      value={isAllDay}
+                      onValueChange={setIsAllDay}
+                      trackColor={{
+                        false: theme.colors.surfaceVariant,
+                        true: theme.colors.primary,
+                      }}
+                    />
                   </View>
 
                   {!isAllDay && (
-                    <>
-                    <View style={styles.row}>
-                      <Text style={{ fontSize: 16, fontWeight: "400" }}>
-                        Start Time
-                      </Text>
-                      <TouchableOpacity
-                              style={styles.timerShowcase}
-                              onPress={() => {
-                                console.log("editing start time")
-                              }}
-                      >
-                        <Text style={styles.timeText}>{startHour}:{startMin} {startAmPm}</Text>
-                      </TouchableOpacity>
+                    <View style={{ marginTop: 8 }}>
+                      <TimeSelector
+                        label="Start Time"
+                        hour={startHour}
+                        minute={startMin}
+                        ampm={startAmPm}
+                        onTimeChange={(h, m, ap) => {
+                          setStartHour(h);
+                          setStartMin(m);
+                          setStartAmPm(ap);
+                        }}
+                      />
+
+                      <TimeSelector
+                        label="End Time"
+                        hour={endHour}
+                        minute={endMin}
+                        ampm={endAmPm}
+                        onTimeChange={(h, m, ap) => {
+                          setEndHour(h);
+                          setEndMin(m);
+                          setEndAmPm(ap);
+                        }}
+                      />
                     </View>
-                    <View style={styles.row}>
-                    <Text style={{ fontSize: 16, fontWeight: "400" }}>
-                      End Time
-                    </Text>
-                    <TouchableOpacity
-                            style={styles.timerShowcase}
-                            onPress={() => {
-                              console.log("editing end time")
-                            }}
-                    >
-                      <Text style={styles.timeText}>{endHour}:{endMin} {endAmPm}</Text>
-                    </TouchableOpacity>
-                    </View>
-                  </>
-                )}
+                  )}
                   {/* Frequency */}
                   <View style={styles.row}>
                     <Text style={styles.rowLabel}>Repeat</Text>
@@ -263,59 +313,73 @@ export const CreateTask = ({
               >
                 <View style={styles.accordionContent}>
                   {/* Timers */}
-                  <ScrollView 
-                    horizontal 
+                  <ScrollView
+                    horizontal
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.timerScrollContainer}
                   >
-                  <View style={styles.timerRow}>
-                      {["0:30", "1:00", "2:00", "5:00", "10:00", "15:00", "20:00", "30:00", "40:00", "50:00", "60:00"].map((time, i) => {
-                        const isSelected = timers.includes(i.toString());
-                        return (
-                          <TouchableOpacity
-                            key={i}
-                            style={[
-                              styles.timersCircle,
-                              isSelected && styles.selectedTimersSelected,
-                            ]}
-                            onPress={() => {
-                              const val = i.toString();
-                              setTimers((prev) =>
-                                prev.includes(val)
-                                  ? prev.filter((d) => d !== val)
-                                  : [...prev, val]
-                              );
+                    {/* <View style={styles.timerRow}> */}
+                    {timerOptions.map((time, i) => {
+                      const isSelected = timers.includes(time);
+                      return (
+                        <TouchableOpacity
+                          key={`${time}-${i}`}
+                          style={[
+                            styles.timersCircle,
+                            isSelected && styles.selectedTimersSelected,
+                          ]}
+                          onPress={() => {
+                            setTimers((prev) =>
+                              prev.includes(time)
+                                ? prev.filter((t) => t !== time)
+                                : [...prev, time]
+                            );
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: isSelected
+                                ? "white"
+                                : theme.colors.primary,
+                              fontWeight: "500",
                             }}
                           >
-                            <Text
-                              style={{
-                                color: isSelected
-                                  ? "white"
-                                  : theme.colors.primary,
-                                fontWeight: "500",
-                              }}
-                            >
-                              {time}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                    </ScrollView>
+                            {time}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    {/* </View> */}
+                  </ScrollView>
 
-                    <View style={styles.row}>
-                    <Text style={{ fontSize: 16, fontWeight: "400" }}>
-                      Custom-timer
-                    </Text>
-                    <Switch value={isCustomTimer} onValueChange={setIsCustomTimer} />
+                  {/* 🟢 Trigger for Custom Timer */}
+                  <View style={styles.row}>
+                    <Text style={styles.rowLabel}>Custom Timer</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.trigger,
+                        { backgroundColor: theme.colors.surfaceVariant },
+                      ]}
+                      onPress={() => setIsCustomTimer(!isCustomTimer)}
+                    >
+                      <Text
+                        style={[
+                          styles.timeText,
+                          { color: theme.colors.primary },
+                        ]}
+                      >
+                        {/* Show placeholder or current selection if you want */}
+                        Set Custom
+                      </Text>
+                    </TouchableOpacity>
                   </View>
 
+                  {/* 🟢 Conditional Picker (Slides open like TimeSelector) */}
                   {isCustomTimer && (
-                    <Text
-                      style={{ marginBottom: 10, color: theme.colors.primary }}
-                    >
-                      Custom Timer picker will go here
-                    </Text>
+                    <CustomTimerPicker
+                      onCancel={() => setIsCustomTimer(false)}
+                      onAdd={handleAddCustomTimer}
+                    />
                   )}
                 </View>
               </List.Accordion>
@@ -370,7 +434,7 @@ const createStyles = (theme: any) =>
       borderTopLeftRadius: 32,
       borderTopRightRadius: 32,
       padding: 24,
-      maxHeight: "100`%",
+      marginTop: 60,
     },
     modalHeader: {
       flexDirection: "row",
@@ -380,7 +444,13 @@ const createStyles = (theme: any) =>
     },
     modalTitle: { fontSize: 24, fontWeight: "bold" },
     center: { alignItems: "center", marginBottom: 20 },
-    emojiDisplay: { fontSize: 64 },
+    emojiDisplay: { fontSize: 72 },
+    iconButton: {
+      padding: 0,
+      position: "absolute",
+      bottom: 2,
+      right: -25,
+    },
     input: { marginBottom: 16 },
     extrasContainer: {
       backgroundColor: theme.colors.surface,
@@ -414,9 +484,17 @@ const createStyles = (theme: any) =>
       // borderWidth: 1,
       // borderColor: theme.colors.outlineVariant,
     },
+    // Inside createStyles
+    trigger: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 10,
+      minWidth: 110,
+      alignItems: "center",
+    },
     timeText: {
-      fontSize: 18,
-      fontWeight: "400",
+      fontSize: 16,
+      fontWeight: "700",
     },
     segButton: { marginVertical: 12, alignSelf: "center" },
     allDayListItem: {
@@ -427,9 +505,9 @@ const createStyles = (theme: any) =>
     dayRow: {
       flexDirection: "row",
       justifyContent: "space-between",
-      marginTop: 8,
+      marginVertical: 10,
       paddingHorizontal: 2,
-      width: '100%',
+      width: "100%",
     },
     dayCircle: {
       width: 36,
@@ -455,25 +533,31 @@ const createStyles = (theme: any) =>
       fontSize: 16,
       fontWeight: "400",
     },
+    timerScrollContainer: {
+      flexDirection: "row",
+      paddingVertical: 10,
+      alignItems: "center",
+      // paddingRight: 20, // 🟢 Extra padding at the end of the scroll
+    },
     timerRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       marginTop: 16,
       paddingHorizontal: 2,
-      width: '100%',
+      width: "100%",
     },
     timersCircle: {
       width: 75,
-      height: 36,
-      marginHorizontal: 2,
-      borderRadius: 18,
+      height: 38,
+      marginRight: 10,
+      borderRadius: 19,
       borderWidth: 1,
       borderColor: theme.colors.primary,
       justifyContent: "center",
       alignItems: "center",
     },
     selectedTimersSelected: {
-      backgroundColor: theme.colors.primary
+      backgroundColor: theme.colors.primary,
     },
 
     helperText: {
