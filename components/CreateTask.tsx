@@ -70,9 +70,6 @@ export const CreateTask = ({
   // timers logic
   const [timers, setTimers] = useState<string[]>([]);
   const [isCustomTimer, setIsCustomTimer] = useState(false);
-  const [timerHour, setTimerHour] = useState("00");
-  const [timerMin, setTimerMin] = useState("00");
-  const [timerSec, setTimerSec] = useState("00");
   const [timerOptions, setTimerOptions] = useState<string[]>([
     "0:30",
     "1:00",
@@ -108,28 +105,48 @@ export const CreateTask = ({
     setError(null);
 
     try {
+      // 1. Helper to convert 12h to 24h string "HH:mm"
+      const formatTo24h = (h: string, m: string, ap: string) => {
+        let hours = parseInt(h);
+        if (ap === "PM" && hours !== 12) hours += 12;
+        if (ap === "AM" && hours === 12) hours = 0;
+        return `${hours.toString().padStart(2, "0")}:${m}`;
+      };
+
+      const startTimeFormatted = isAllDay
+        ? null
+        : formatTo24h(startHour, startMin, startAmPm);
+      const endTimeFormatted = isAllDay
+        ? null
+        : formatTo24h(endHour, endMin, endAmPm);
+
       const payload = {
         title,
         description,
         creatorId: user.$id,
-        emote_pic: emojiPic,
+        emotePic: emojiPic, // 🟢 Match schema key "emotePic"
         type: isRecurring ? "recurring" : "one-time",
         frequency: isRecurring ? "weekly" : "once",
         daysOfWeek: isRecurring ? daysOfWeek : [],
+        timers: timers, // 🟢 Passing the string array of selected timers
         isAllDay,
-        hasTimeLimit,
-        duration: hasTimeLimit ? parseInt(duration) : null,
+        startTime: startTimeFormatted,
+        endTime: endTimeFormatted,
+        hasTimeLimit: timers.length > 0, // 🟢 If timers are selected, set to true
         startDate: selectedDate.toISOString(),
+        endDate: isRecurring ? null : selectedDate.toISOString(), // 🟢 End date for one-time
         isCompleted: false,
+        isShared: false,
+        category: "task",
       };
 
-      // Replace HABITS_TABLE_ID with your specific TASKS_COLLECTION_ID
       await databases.createDocument(
         DATABASE_ID,
         TASKS_TABLE_ID,
         "unique()",
         payload
       );
+
       resetAndClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error creating task");
@@ -142,7 +159,23 @@ export const CreateTask = ({
     setEmojiPic("✅");
     setIsRecurring(false);
     setDaysOfWeek([]);
+    setTimers([]); // 🟢 Clear selections
+    setTimerOptions([
+      // 🟢 Reset presets to defaults
+      "0:30",
+      "1:00",
+      "2:00",
+      "5:00",
+      "10:00",
+      "15:00",
+      "20:00",
+      "30:00",
+      "40:00",
+      "50:00",
+      "60:00",
+    ]);
     setIsAllDay(true);
+    setIsCustomTimer(false);
     onClose();
   };
 
