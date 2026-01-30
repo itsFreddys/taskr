@@ -203,14 +203,19 @@ export const CreateTask = ({
 
             {/* Emoji & Title */}
             <View style={styles.center}>
-              <TouchableOpacity onPress={() => setEmojiPickerVisible(true)}>
+              <TouchableOpacity
+                onPress={() => setEmojiPickerVisible(true)}
+                style={styles.emojiContainer}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.emojiDisplay}>{emojiPic}</Text>
-                <Ionicons
-                  name="add-circle-outline"
-                  size={28}
-                  color="#6c6c80"
-                  style={styles.iconButton}
-                />
+                <View style={styles.addIconBadge}>
+                  <Ionicons
+                    name="add-circle" // 🟢 Changed to filled circle for better visibility
+                    size={26}
+                    color={theme.colors.primary} // 🟢 Use theme color for professional look
+                  />
+                </View>
               </TouchableOpacity>
             </View>
 
@@ -448,8 +453,12 @@ export const CreateTask = ({
 
       <CustomEmojiPicker
         visible={emojiPickerVisible}
+        currentEmote={emojiPic}
         onClose={() => setEmojiPickerVisible(false)}
-        onSelect={setEmojiPic}
+        onSelect={(emoji) => {
+          setEmojiPic(emoji);
+          setEmojiPickerVisible(false);
+        }}
       />
     </Modal>
   );
@@ -476,13 +485,31 @@ const createStyles = (theme: any) =>
       marginBottom: 20,
     },
     modalTitle: { fontSize: 24, fontWeight: "bold" },
-    center: { alignItems: "center", marginBottom: 20 },
-    emojiDisplay: { fontSize: 72 },
-    iconButton: {
-      padding: 0,
+    center: {
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 24,
+      marginTop: 10,
+    },
+    emojiContainer: {
+      width: 100,
+      height: 100,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.colors.surface, // 🟢 Optional: subtle background circle
+      borderRadius: 50,
+    },
+    emojiDisplay: {
+      fontSize: 72, // 🟢 Slightly smaller for better fit in container
+      textAlign: "center",
+      includeFontPadding: false, // 🟢 Android specific fix for centering
+    },
+    addIconBadge: {
       position: "absolute",
-      bottom: 2,
-      right: -25,
+      bottom: 0,
+      right: 0,
+      backgroundColor: theme.colors.background, // 🟢 Masking background
+      borderRadius: 15,
     },
     input: { marginBottom: 16 },
     extrasContainer: {

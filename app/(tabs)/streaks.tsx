@@ -1,4 +1,8 @@
 import { CreateTask } from "@/components/CreateTask";
+import { TaskActiveButtons } from "@/components/TaskActiveButtons";
+import { TaskCard } from "@/components/TaskCard";
+import { DATABASE_ID, databases, TASKS_TABLE_ID } from "@/lib/appwrite";
+import { useAuth } from "@/lib/auth-context";
 import { Task } from "@/types/database.type";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
@@ -11,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Models, Query } from "react-native-appwrite";
 import {
   FAB,
   IconButton,
@@ -30,31 +35,56 @@ const VAR_HEADER = 118;
 const Tab = createMaterialTopTabNavigator();
 
 // ✅ Create mini-components for the content
-function TasksTab({ onScroll, headerHeight }: any) {
+function TasksTab({
+  onScroll,
+  headerHeight,
+  tasks,
+  activeButton,
+  setActiveButton,
+}: any) {
   const theme = useTheme();
   const styles = createStyles(theme, headerHeight);
-
-  // ✅ The Spacer needs to be the Header (118) + Tab Bar (48)
   const TOTAL_SPACER_HEIGHT = headerHeight + 48;
-  const EMPTY_STATE_HEIGHT = SCREEN_HEIGHT - TOTAL_SPACER_HEIGHT - 100;
 
   return (
     <Animated.FlatList
-      data={[]}
+      data={tasks} // 🟢 Use the tasks passed from parent
       onScroll={onScroll}
+      keyExtractor={(item) => item.$id}
       scrollEventThrottle={16}
-      contentContainerStyle={{
-        paddingBottom: 5,
-        minHeight: SCREEN_HEIGHT,
-      }}
-      // 🟢 This invisible block pushes the list down past the header AND tabs
-      ListHeaderComponent={<View style={{ height: TOTAL_SPACER_HEIGHT }} />}
-      ListEmptyComponent={
-        <View style={[styles.emptyCard, { height: EMPTY_STATE_HEIGHT }]}>
-          <Text style={{ color: "#aaa" }}>No Tasks tracked.</Text>
+      contentContainerStyle={{ paddingBottom: 100, minHeight: SCREEN_HEIGHT }}
+      ListHeaderComponent={
+        <View>
+          <View style={{ height: TOTAL_SPACER_HEIGHT }} />
+
+          {tasks && tasks.length > 0 && (
+            <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
+              <TaskActiveButtons
+                onSelect={(activeButton) => {
+                  setActiveButton(activeButton);
+                }}
+              />
+              <Text>{activeButton}</Text>
+            </View>
+          )}
         </View>
       }
-      renderItem={null}
+      ListEmptyComponent={
+        <View
+          style={[
+            styles.emptyCard,
+            { height: SCREEN_HEIGHT - TOTAL_SPACER_HEIGHT - 200 },
+          ]}
+        >
+          <Text style={{ color: "#aaa" }}>No tasks for this date.</Text>
+        </View>
+      }
+      renderItem={({ item }) => (
+        <TaskCard
+          task={item}
+          onPress={() => console.log("Edit Task", item.$id)}
+        />
+      )}
     />
   );
 }
@@ -92,7 +122,6 @@ export default function Streakscreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const flatListRef = useRef<FlatList>(null);
   const today = startOfDay(new Date());
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchToggle, setSearchToggle] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(VAR_HEADER);
@@ -106,12 +135,50 @@ export default function Streakscreen() {
   const theme = useTheme();
   const styles = createStyles(theme, headerHeight);
 
+  // database
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [activeButton, setActiveButton] = useState<string>("all");
+
   useEffect(() => {
     const timer = setTimeout(() => {
       jumpToToday();
     }, 100);
+    fetchTasks();
     return () => clearTimeout(timer);
-  }, []);
+  }, [user]);
+
+  const filteredTasks = useMemo(() => {
+    const dayIndex = selectedDate.getDay().toString();
+
+    return tasks.filter((task) => {
+      // 🟢 Remove the check for "once" since your Type only uses "one-time"
+      if (task.type === "one-time") {
+        return isSameDay(new Date(task.startDate), selectedDate);
+      }
+
+      if (task.type === "recurring") {
+        // Ensure daysOfWeek exists before calling .includes
+        return task.daysOfWeek ? task.daysOfWeek.includes(dayIndex) : false;
+      }
+
+      return false;
+    });
+  }, [tasks, selectedDate]);
+
+  const fetchTasks = async () => {
+    if (!user) return;
+    try {
+      const response = await databases.listDocuments<Models.Document & Task>(
+        DATABASE_ID,
+        TASKS_TABLE_ID,
+        [Query.equal("creatorId", user.$id)]
+      );
+      setTasks(response.documents);
+    } catch (error) {
+      console.error("Fetch error:", error);
+    }
+  };
 
   // Function to pass scroll events from children to the parent
   const onScroll = Animated.event(
@@ -256,7 +323,7 @@ export default function Streakscreen() {
             <IconButton
               icon="calendar-today"
               onPress={jumpToToday}
-              containerColor="#ede7f6"
+              containerColor={theme.colors.surfaceVariant}
             />
             <IconButton
               icon={searchToggle ? "magnify-minus" : "magnify"}
@@ -264,7 +331,7 @@ export default function Streakscreen() {
                 setHeaderHeight(searchToggle ? VAR_HEADER : VAR_HEADER + 60);
                 setSearchToggle((prev) => !prev);
               }}
-              containerColor="#ede7f6"
+              containerColor={theme.colors.surfaceVariant}
             />
           </View>
         </View>
@@ -305,6 +372,7 @@ export default function Streakscreen() {
       <View style={{ flex: 1 }}>
         <Tab.Navigator
           screenOptions={{
+            sceneStyle: { backgroundColor: theme.colors.background },
             tabBarActiveTintColor: theme.colors.primary,
             tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
             tabBarIndicatorStyle: {
@@ -314,6 +382,8 @@ export default function Streakscreen() {
             },
             tabBarStyle: {
               backgroundColor: theme.colors.background,
+              borderBottomWidth: 1, // 🟢 Adds a subtle separation
+              borderBottomColor: theme.colors.surfaceVariant,
               elevation: 0, // 🟢 Remove shadow for a flat look
               shadowOpacity: 0,
               position: "absolute",
@@ -335,7 +405,15 @@ export default function Streakscreen() {
           }}
         >
           <Tab.Screen name="Tasks">
-            {() => <TasksTab onScroll={onScroll} headerHeight={headerHeight} />}
+            {() => (
+              <TasksTab
+                onScroll={onScroll}
+                headerHeight={headerHeight}
+                tasks={filteredTasks} // 🟢 Pass the memoized list here
+                activeButton={activeButton}
+                setActiveButton={setActiveButton}
+              />
+            )}
           </Tab.Screen>
           <Tab.Screen name="Schedule">
             {() => (
@@ -353,7 +431,10 @@ export default function Streakscreen() {
 
       <CreateTask
         visible={createVisible}
-        onClose={() => setCreateVisible(false)}
+        onClose={() => {
+          setCreateVisible(false);
+          fetchTasks();
+        }}
         selectedDate={selectedDate}
       />
     </View>
@@ -446,6 +527,7 @@ const createStyles = (theme: any, v_height: number) =>
     emptyCard: {
       flex: 1,
       margin: 16,
+      backgroundColor: theme.colors.surface,
       borderStyle: "dashed",
       borderWidth: 1,
       borderColor: "#ccc",
