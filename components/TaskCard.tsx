@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, ViewStyle } from "react-native";
 import {
   Checkbox,
   IconButton,
@@ -10,20 +10,24 @@ import {
 } from "react-native-paper";
 
 interface TaskCardProps {
-  task: any; // Ideally use your TaskRecipe type
+  task: any;
   onPress?: () => void;
-  onToggleComplete?: (id: string, currentStatus: boolean) => void;
+  onToggleComplete?: (id: string, currentStatus: string) => void;
+  style?: ViewStyle; // Added to handle custom styles passed from parent
 }
 
 export const TaskCard = ({
   task,
   onPress,
   onToggleComplete,
+  style,
 }: TaskCardProps) => {
   const theme = useTheme();
   const styles = createStyles(theme);
 
-  // Helper to format 24h startTime to 12h for display
+  // 🟢 Define this variable so it can be used in the styles below
+  const isCompleted = task.status === "completed";
+
   const displayTime = (timeStr: string) => {
     if (!timeStr) return "";
     const [hours, mins] = timeStr.split(":");
@@ -34,7 +38,10 @@ export const TaskCard = ({
   };
 
   return (
-    <Surface style={styles.card} elevation={1}>
+    <Surface
+      style={[styles.card, isCompleted && { opacity: 0.5 }, style]}
+      elevation={isCompleted ? 0 : 1}
+    >
       <View style={styles.contentWrapper}>
         <TouchableOpacity
           style={styles.touchable}
@@ -44,8 +51,9 @@ export const TaskCard = ({
           {/* Left Section: Completion Toggle */}
           <View style={styles.leftSection}>
             <Checkbox
-              status={task.isCompleted ? "checked" : "unchecked"}
-              onPress={() => onToggleComplete?.(task.$id, task.isCompleted)}
+              // 🟢 Check against status string
+              status={isCompleted ? "checked" : "unchecked"}
+              onPress={() => onToggleComplete?.(task.$id, task.status)}
               color={theme.colors.primary}
             />
           </View>
@@ -55,7 +63,7 @@ export const TaskCard = ({
             <View style={styles.titleRow}>
               <Text style={styles.emoji}>{task.emotePic || "✅"}</Text>
               <Text
-                style={[styles.title, task.isCompleted && styles.completedText]}
+                style={[styles.title, isCompleted && styles.completedText]}
                 numberOfLines={1}
               >
                 {task.title}
@@ -63,7 +71,6 @@ export const TaskCard = ({
             </View>
 
             <View style={styles.metaRow}>
-              {/* Time Block Indicator */}
               {!task.isAllDay && task.startTime && (
                 <View style={styles.metaItem}>
                   <MaterialCommunityIcons
@@ -77,7 +84,6 @@ export const TaskCard = ({
                 </View>
               )}
 
-              {/* Recurring Indicator */}
               {task.type === "recurring" && (
                 <View style={styles.metaItem}>
                   <MaterialCommunityIcons
@@ -89,7 +95,6 @@ export const TaskCard = ({
                 </View>
               )}
 
-              {/* Timer Indicator */}
               {task.timers && task.timers.length > 0 && (
                 <View style={styles.metaItem}>
                   <MaterialCommunityIcons
@@ -107,7 +112,6 @@ export const TaskCard = ({
             </View>
           </View>
 
-          {/* Right Section: Action/Chevron */}
           <IconButton
             icon="chevron-right"
             size={20}

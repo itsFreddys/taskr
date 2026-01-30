@@ -1,56 +1,50 @@
-import React, { useState } from "react";
+import React from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, useTheme } from "react-native-paper";
+import { Chip, useTheme } from "react-native-paper";
 
 interface TaskActiveProps {
-  onSelect: (activeButton: string) => void;
+  selected: string;
+  onSelect: (value: string) => void;
 }
 
-export const TaskActiveButtons = ({ onSelect }: TaskActiveProps) => {
+export const TaskActiveButtons = ({ selected, onSelect }: TaskActiveProps) => {
   const theme = useTheme();
   const styles = createStyles(theme);
 
-  const [focusedTaskButton, setFocusedTaskButton] = useState<
-    "all" | "active" | "completed"
-  >("all");
+  const filters = [
+    { label: "All", value: "all" },
+    { label: "Active", value: "active" },
+    { label: "Completed", value: "completed" },
+  ];
 
   return (
-    <View style={styles.taskButtons}>
-      <Button
-        style={styles.taskButton}
-        labelStyle={styles.taskButtonLabel}
-        mode={focusedTaskButton === "all" ? "contained-tonal" : "elevated"}
-        onPress={() => {
-          setFocusedTaskButton("all");
-          onSelect(focusedTaskButton);
-        }}
-      >
-        All
-      </Button>
-      <Button
-        style={styles.taskButton}
-        labelStyle={styles.taskButtonLabel}
-        mode={focusedTaskButton === "active" ? "contained-tonal" : "elevated"}
-        onPress={() => {
-          setFocusedTaskButton("active");
-          onSelect(focusedTaskButton);
-        }}
-      >
-        Active
-      </Button>
-      <Button
-        style={styles.taskButton}
-        labelStyle={styles.taskButtonLabel}
-        mode={
-          focusedTaskButton === "completed" ? "contained-tonal" : "elevated"
-        }
-        onPress={() => {
-          setFocusedTaskButton("completed");
-          onSelect(focusedTaskButton);
-        }}
-      >
-        Completed
-      </Button>
+    <View style={styles.container}>
+      {filters.map((filter) => {
+        const isSelected = selected === filter.value;
+        return (
+          <Chip
+            key={filter.value}
+            selected={isSelected}
+            onPress={() => onSelect(filter.value)}
+            mode="flat" // 🟢 Flat looks more modern in a scrollable list
+            showSelectedOverlay
+            style={[
+              styles.chip,
+              isSelected && { backgroundColor: theme.colors.primaryContainer },
+            ]}
+            textStyle={[
+              styles.chipText,
+              isSelected && {
+                color: theme.colors.onPrimaryContainer,
+                fontWeight: "700",
+              },
+            ]}
+            compact
+          >
+            {filter.label}
+          </Chip>
+        );
+      })}
     </View>
   );
 };
@@ -58,28 +52,17 @@ export const TaskActiveButtons = ({ onSelect }: TaskActiveProps) => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      borderRadius: 16,
-      padding: 10,
-      marginTop: 10,
-      width: "100%",
-    },
-    taskButtons: {
       flexDirection: "row",
-      alignItems: "flex-start",
-      marginBottom: 12,
+      alignItems: "center",
+      marginBottom: 8,
     },
-    taskButton: {
-      marginRight: 10,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
+    chip: {
+      marginRight: 8,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surfaceVariant,
+      borderWidth: 0, // 🟢 Removes border for a cleaner "pill" look
     },
-    taskButtonLabel: {
-      fontSize: 12,
-      paddingVertical: 0,
-      // paddingHorizontal: 4,
-      fontWeight: "bold",
+    chipText: {
+      fontSize: 13,
     },
   });

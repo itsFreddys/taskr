@@ -22,6 +22,7 @@ export interface Task extends Models.Document {
   title: string;
   description: string;
   category?: string;
+  status: "active" | "completed";
 
   // logic type
   type: "one-time" | "recurring";
@@ -31,6 +32,7 @@ export interface Task extends Models.Document {
   startDate: string;
   endDate?: string;
   daysOfWeek?: string; // [1,3,5] => 1.3.5 for mon, wed, fri
+  lastCompletedDate?: string | null;
 
   // timing (schedule logic)
   isAllDay: boolean;

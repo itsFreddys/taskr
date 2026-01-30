@@ -4,6 +4,7 @@ import { TaskCard } from "@/components/TaskCard";
 import { DATABASE_ID, databases, TASKS_TABLE_ID } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
 import { Task } from "@/types/database.type";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -41,6 +42,7 @@ function TasksTab({
   tasks,
   activeButton,
   setActiveButton,
+  onToggleTask,
 }: any) {
   const theme = useTheme();
   const styles = createStyles(theme, headerHeight);
@@ -50,23 +52,20 @@ function TasksTab({
     <Animated.FlatList
       data={tasks} // 🟢 Use the tasks passed from parent
       onScroll={onScroll}
-      keyExtractor={(item) => item.$id}
+      keyExtractor={(item) => item.$id || item.id}
       scrollEventThrottle={16}
       contentContainerStyle={{ paddingBottom: 100, minHeight: SCREEN_HEIGHT }}
       ListHeaderComponent={
         <View>
           <View style={{ height: TOTAL_SPACER_HEIGHT }} />
 
-          {tasks && tasks.length > 0 && (
-            <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
-              <TaskActiveButtons
-                onSelect={(activeButton) => {
-                  setActiveButton(activeButton);
-                }}
-              />
-              <Text>{activeButton}</Text>
-            </View>
-          )}
+          {/* 🟢 Improved Layout Container */}
+          <View style={styles.filterContainer}>
+            <TaskActiveButtons
+              selected={activeButton}
+              onSelect={setActiveButton}
+            />
+          </View>
         </View>
       }
       ListEmptyComponent={
@@ -76,15 +75,43 @@ function TasksTab({
             { height: SCREEN_HEIGHT - TOTAL_SPACER_HEIGHT - 200 },
           ]}
         >
-          <Text style={{ color: "#aaa" }}>No tasks for this date.</Text>
+          <MaterialCommunityIcons
+            name={
+              activeButton === "completed"
+                ? "check-all"
+                : "clipboard-text-outline"
+            }
+            size={48}
+            color={theme.colors.outlineVariant}
+          />
+          <Text style={{ color: "#aaa", marginTop: 12 }}>
+            {activeButton === "completed"
+              ? "No completed tasks yet. Keep going!"
+              : "No active tasks for today."}
+          </Text>
         </View>
       }
-      renderItem={({ item }) => (
-        <TaskCard
-          task={item}
-          onPress={() => console.log("Edit Task", item.$id)}
-        />
-      )}
+      renderItem={({ item }) => {
+        // 🟢 If it's the separator, render the title
+        if (item.type === "separator") {
+          return (
+            <View style={styles.separatorContainer}>
+              <View style={styles.separatorLine} />
+              <Text style={styles.separatorText}>Completed</Text>
+              <View style={styles.separatorLine} />
+            </View>
+          );
+        }
+
+        return (
+          <TaskCard
+            task={item}
+            onToggleComplete={onToggleTask}
+            // 🟢 Add opacity logic inside TaskCard or here
+            style={{ opacity: item.status === "completed" ? 0.5 : 1 }}
+          />
+        );
+      }}
     />
   );
 }
@@ -125,6 +152,7 @@ export default function Streakscreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchToggle, setSearchToggle] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(VAR_HEADER);
+  const [error, setError] = useState<string | null>(null);
 
   // visibility for create modal
   const [createVisible, setCreateVisible] = useState(false);
@@ -151,20 +179,51 @@ export default function Streakscreen() {
   const filteredTasks = useMemo(() => {
     const dayIndex = selectedDate.getDay().toString();
 
-    return tasks.filter((task) => {
-      // 🟢 Remove the check for "once" since your Type only uses "one-time"
+    let results = tasks.filter((task) => {
       if (task.type === "one-time") {
         return isSameDay(new Date(task.startDate), selectedDate);
       }
-
       if (task.type === "recurring") {
-        // Ensure daysOfWeek exists before calling .includes
         return task.daysOfWeek ? task.daysOfWeek.includes(dayIndex) : false;
       }
-
       return false;
     });
-  }, [tasks, selectedDate]);
+
+    // 🟢 TRANSFORM the task status based on the selectedDate
+    const processedResults = results.map((task) => {
+      // Check if it was completed on the currently viewed date
+      const wasCompletedOnThisDay = task.lastCompletedDate
+        ? isSameDay(new Date(task.lastCompletedDate), selectedDate)
+        : false;
+
+      return {
+        ...task,
+        // Override status locally for the calendar view
+        status: (wasCompletedOnThisDay ? "completed" : "active") as
+          | "active"
+          | "completed",
+      };
+    });
+
+    // Now apply your All/Active/Completed filters to the PROCESSED list
+    const activeTasks = processedResults.filter((t) => t.status === "active");
+    const completedTasks = processedResults.filter(
+      (t) => t.status === "completed"
+    );
+
+    if (activeButton === "all") {
+      if (completedTasks.length > 0 && activeTasks.length > 0) {
+        return [
+          ...activeTasks,
+          { type: "separator", id: "completed-sep" },
+          ...completedTasks,
+        ];
+      }
+      return [...activeTasks, ...completedTasks];
+    }
+
+    return activeButton === "active" ? activeTasks : completedTasks;
+  }, [tasks, selectedDate, activeButton]);
 
   const fetchTasks = async () => {
     if (!user) return;
@@ -177,6 +236,37 @@ export default function Streakscreen() {
       setTasks(response.documents);
     } catch (error) {
       console.error("Fetch error:", error);
+    }
+  };
+
+  const handleToggleTask = async (taskId: string, currentStatus: string) => {
+    const isNowCompleted = currentStatus === "active";
+    const newStatus = isNowCompleted ? "completed" : "active";
+
+    // 🟢 Use ISO string for the Datetime field in Appwrite
+    const completionDate = isNowCompleted ? selectedDate.toISOString() : null;
+
+    try {
+      // 🟢 Optimistic Update with Type Casting
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.$id === taskId
+            ? ({
+                ...t,
+                status: newStatus,
+                lastCompletedDate: completionDate,
+              } as Task)
+            : t
+        )
+      );
+
+      await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
+        status: newStatus,
+        lastCompletedDate: completionDate,
+      });
+    } catch (error) {
+      console.error("Toggle failed:", error);
+      fetchTasks(); // Rollback on error
     }
   };
 
@@ -412,6 +502,7 @@ export default function Streakscreen() {
                 tasks={filteredTasks} // 🟢 Pass the memoized list here
                 activeButton={activeButton}
                 setActiveButton={setActiveButton}
+                onToggleTask={handleToggleTask}
               />
             )}
           </Tab.Screen>
@@ -535,6 +626,31 @@ const createStyles = (theme: any, v_height: number) =>
       justifyContent: "center",
       alignItems: "center",
       alignSelf: "stretch",
+    },
+    filterContainer: {
+      paddingHorizontal: 20, // 🟢 Aligned with your calendar header
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    separatorContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginHorizontal: 20,
+      marginVertical: 16,
+      opacity: 0.5,
+    },
+    separatorLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.outlineVariant,
+    },
+    separatorText: {
+      marginHorizontal: 12,
+      fontSize: 12,
+      fontWeight: "bold",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+      color: theme.colors.onSurfaceVariant,
     },
     navHeaderOptions: {
       flexDirection: "row",
