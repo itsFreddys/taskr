@@ -22,7 +22,7 @@ export interface Task extends Models.Document {
   title: string;
   description: string;
   category?: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "inactive";
 
   // logic type
   type: "one-time" | "recurring";

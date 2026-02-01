@@ -7,6 +7,7 @@ import { Task } from "@/types/database.type";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
+import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -43,6 +44,8 @@ function TasksTab({
   activeButton,
   setActiveButton,
   onToggleTask,
+  onMoveToTomorrow,
+  onRemoveTask,
 }: any) {
   const theme = useTheme();
   const styles = createStyles(theme, headerHeight);
@@ -107,8 +110,11 @@ function TasksTab({
           <TaskCard
             task={item}
             onToggleComplete={onToggleTask}
+            onMoveToTomorrow={onMoveToTomorrow} // 🟢 New
+            onDelete={onRemoveTask} // 🟢 New
             // 🟢 Add opacity logic inside TaskCard or here
             style={{ opacity: item.status === "completed" ? 0.5 : 1 }}
+            onPress={() => console.log("Edit Task", item.$id)}
           />
         );
       }}
@@ -176,10 +182,51 @@ export default function Streakscreen() {
     return () => clearTimeout(timer);
   }, [user]);
 
+  // Inside Streakscreen.tsx
+
+  const handleMoveToTomorrow = async (taskId: string) => {
+    // Use startOfDay to ensure we aren't accidentally moving it to "Tomorrow at 8PM"
+    const tomorrow = addDays(startOfDay(new Date()), 1).toISOString();
+
+    try {
+      setTasks((prev) => prev.filter((t) => t.$id !== taskId));
+
+      await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
+        startDate: tomorrow,
+        status: "active",
+        lastCompletedDate: null,
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error("Move failed", error);
+      fetchTasks();
+    }
+  };
+
+  // 🟢 Renamed and updated to set status to "inactive"
+  const handleRemoveTask = async (taskId: string) => {
+    try {
+      // Optimistic Update: Remove from the current view
+      setTasks((prev) => prev.filter((t) => t.$id !== taskId));
+
+      await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
+        status: "inactive", // 🟢 No longer deleting, just marking as inactive
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    } catch (error) {
+      console.error("Removal failed", error);
+      fetchTasks();
+    }
+  };
+
   const filteredTasks = useMemo(() => {
     const dayIndex = selectedDate.getDay().toString();
 
     let results = tasks.filter((task) => {
+      if (task.status === "inactive") return false;
+
       if (task.type === "one-time") {
         return isSameDay(new Date(task.startDate), selectedDate);
       }
@@ -503,6 +550,8 @@ export default function Streakscreen() {
                 activeButton={activeButton}
                 setActiveButton={setActiveButton}
                 onToggleTask={handleToggleTask}
+                onMoveToTomorrow={handleMoveToTomorrow}
+                onRemoveTask={handleRemoveTask}
               />
             )}
           </Tab.Screen>

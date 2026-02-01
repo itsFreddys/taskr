@@ -1,123 +1,145 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React from "react";
-import { StyleSheet, TouchableOpacity, View, ViewStyle } from "react-native";
-import {
-  Checkbox,
-  IconButton,
-  Surface,
-  Text,
-  useTheme,
-} from "react-native-paper";
-
-interface TaskCardProps {
-  task: any;
-  onPress?: () => void;
-  onToggleComplete?: (id: string, currentStatus: string) => void;
-  style?: ViewStyle; // Added to handle custom styles passed from parent
-}
+import * as Haptics from "expo-haptics";
+import React, { useState } from "react";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Checkbox, Surface, Text, useTheme } from "react-native-paper";
+import CustomMenu from "./CustomMenu";
 
 export const TaskCard = ({
   task,
   onPress,
   onToggleComplete,
+  onMoveToTomorrow,
+  onRemove,
   style,
-}: TaskCardProps) => {
+}: any) => {
   const theme = useTheme();
   const styles = createStyles(theme);
-
-  // 🟢 Define this variable so it can be used in the styles below
   const isCompleted = task.status === "completed";
 
-  const displayTime = (timeStr: string) => {
-    if (!timeStr) return "";
-    const [hours, mins] = timeStr.split(":");
-    let h = parseInt(hours);
-    const ampm = h >= 12 ? "PM" : "AM";
-    h = h % 12 || 12;
-    return `${h}:${mins} ${ampm}`;
+  const [leftVisible, setLeftVisible] = useState(false);
+  const [rightVisible, setRightVisible] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
+  const handleToggle = () => {
+    !isCompleted
+      ? Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      : Haptics.selectionAsync();
+    onToggleComplete?.(task.$id, task.status);
+  };
+
+  const onLongPressLeft = (event: any) => {
+    const { pageY, pageX } = event.nativeEvent;
+    setMenuPos({ top: pageY, left: pageX });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setLeftVisible(true);
+  };
+
+  const onLongPressRight = (event: any) => {
+    const { pageY, pageX } = event.nativeEvent;
+    setMenuPos({ top: pageY, left: pageX - 150 });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setRightVisible(true);
   };
 
   return (
     <Surface
-      style={[styles.card, isCompleted && { opacity: 0.5 }, style]}
+      style={[styles.card, isCompleted && styles.completedCard, style]}
       elevation={isCompleted ? 0 : 1}
     >
-      <View style={styles.contentWrapper}>
-        <TouchableOpacity
-          style={styles.touchable}
-          onPress={onPress}
-          activeOpacity={0.7}
-        >
-          {/* Left Section: Completion Toggle */}
-          <View style={styles.leftSection}>
-            <Checkbox
-              // 🟢 Check against status string
-              status={isCompleted ? "checked" : "unchecked"}
-              onPress={() => onToggleComplete?.(task.$id, task.status)}
-              color={theme.colors.primary}
+      {/* 🟢 Inner container to fix the Shadow/Overflow warning */}
+      <View style={styles.innerContainer}>
+        <View style={styles.cardLayout}>
+          {/* 🟢 LEFT ZONE: Tap to Complete | Long Press for Menu */}
+          <View style={styles.flexFill}>
+            <CustomMenu
+              visible={leftVisible}
+              onDismiss={() => setLeftVisible(false)}
+              position={menuPos}
+              items={[
+                {
+                  label: isCompleted ? "Mark Active" : "Mark Complete",
+                  onPress: handleToggle,
+                },
+                {
+                  label: "Postpone Tomorrow",
+                  onPress: () => onMoveToTomorrow(task.$id),
+                },
+                {
+                  label: "Remove Task",
+                  onPress: () => onRemove(task.$id),
+                  danger: true,
+                },
+              ]}
+              anchor={
+                <TouchableOpacity
+                  style={styles.leftZone}
+                  onPress={handleToggle} // 🟢 Changed to handleToggle
+                  onLongPress={onLongPressLeft}
+                  delayLongPress={300}
+                >
+                  {isCompleted && (
+                    <View style={styles.actionZone}>
+                      {/* Checkbox stays for visual confirmation, but tap is handled by the zone */}
+                      <Checkbox
+                        status="checked"
+                        onPress={handleToggle}
+                        color={theme.colors.primary}
+                      />
+                    </View>
+                  )}
+
+                  <View style={styles.infoZone}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.emoji}>{task.emotePic || "✅"}</Text>
+                      <Text
+                        style={[
+                          styles.title,
+                          isCompleted && styles.completedText,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {task.title}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              }
             />
           </View>
 
-          {/* Middle Section: Task Info */}
-          <View style={styles.middleSection}>
-            <View style={styles.titleRow}>
-              <Text style={styles.emoji}>{task.emotePic || "✅"}</Text>
-              <Text
-                style={[styles.title, isCompleted && styles.completedText]}
-                numberOfLines={1}
-              >
-                {task.title}
-              </Text>
-            </View>
-
-            <View style={styles.metaRow}>
-              {!task.isAllDay && task.startTime && (
-                <View style={styles.metaItem}>
-                  <MaterialCommunityIcons
-                    name="clock-outline"
-                    size={14}
-                    color={theme.colors.outline}
-                  />
-                  <Text style={styles.metaText}>
-                    {displayTime(task.startTime)}
-                  </Text>
-                </View>
-              )}
-
-              {task.type === "recurring" && (
-                <View style={styles.metaItem}>
-                  <MaterialCommunityIcons
-                    name="refresh"
-                    size={14}
-                    color={theme.colors.outline}
-                  />
-                  <Text style={styles.metaText}>Weekly</Text>
-                </View>
-              )}
-
-              {task.timers && task.timers.length > 0 && (
-                <View style={styles.metaItem}>
-                  <MaterialCommunityIcons
-                    name="timer-outline"
-                    size={14}
-                    color={theme.colors.primary}
-                  />
-                  <Text
-                    style={[styles.metaText, { color: theme.colors.primary }]}
+          {/* 🟢 RIGHT ZONE: Tap for Details | Long Press for Timer/More */}
+          {!isCompleted && (
+            <View style={styles.rightContainer}>
+              <CustomMenu
+                visible={rightVisible}
+                onDismiss={() => setRightVisible(false)}
+                position={menuPos}
+                items={[
+                  {
+                    label: "Start Timer",
+                    onPress: () => console.log("Start Timer"),
+                  },
+                  { label: "Edit Task", onPress: onPress },
+                ]}
+                anchor={
+                  <TouchableOpacity
+                    style={styles.rightZone}
+                    onPress={onPress} // 🟢 Stays as details/edit
+                    onLongPress={onLongPressRight}
+                    delayLongPress={300}
                   >
-                    {task.timers[0]}
-                  </Text>
-                </View>
-              )}
+                    <MaterialCommunityIcons
+                      name="timer-outline"
+                      size={24}
+                      color={theme.colors.outlineVariant}
+                    />
+                  </TouchableOpacity>
+                }
+              />
             </View>
-          </View>
-
-          <IconButton
-            icon="chevron-right"
-            size={20}
-            iconColor={theme.colors.outline}
-          />
-        </TouchableOpacity>
+          )}
+        </View>
       </View>
     </Surface>
   );
@@ -131,33 +153,49 @@ const createStyles = (theme: any) =>
       borderRadius: 16,
       backgroundColor: theme.colors.surface,
     },
-    contentWrapper: {
+    innerContainer: {
       borderRadius: 16,
-      overflow: "hidden",
+      overflow: "hidden", // 🟢 Clipping happens here, silencing the warning
+      flex: 1,
     },
-    touchable: {
+    completedCard: {
+      backgroundColor: theme.colors.surfaceVariant,
+      opacity: 0.6,
+    },
+    cardLayout: {
+      flexDirection: "row",
+      height: 72,
+      alignItems: "center",
+    },
+    flexFill: { flex: 1 },
+    rightContainer: { width: 60 },
+    leftZone: {
+      height: "100%",
       flexDirection: "row",
       alignItems: "center",
-      paddingVertical: 12,
-      paddingHorizontal: 8,
+      paddingLeft: 16,
     },
-    leftSection: {
-      justifyContent: "center",
+    rightZone: {
+      width: 60,
+      height: "100%",
       alignItems: "center",
+      justifyContent: "center",
+      borderLeftWidth: 1,
+      borderLeftColor: theme.colors.surfaceVariant,
     },
-    middleSection: {
+    actionZone: {
+      marginRight: 8,
+      justifyContent: "center",
+    },
+    infoZone: {
       flex: 1,
-      marginLeft: 4,
+      justifyContent: "center", // 🟢 Absolute vertical center for text
     },
     titleRow: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 4,
     },
-    emoji: {
-      fontSize: 18,
-      marginRight: 8,
-    },
+    emoji: { fontSize: 18, marginRight: 8 },
     title: {
       fontSize: 16,
       fontWeight: "600",
@@ -165,22 +203,6 @@ const createStyles = (theme: any) =>
     },
     completedText: {
       textDecorationLine: "line-through",
-      opacity: 0.5,
-    },
-    metaRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      flexWrap: "wrap",
-    },
-    metaItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginRight: 12,
-      marginTop: 2,
-    },
-    metaText: {
-      fontSize: 12,
-      marginLeft: 4,
       color: theme.colors.outline,
     },
   });

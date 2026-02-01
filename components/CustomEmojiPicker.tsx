@@ -130,6 +130,7 @@ export const CustomEmojiPicker = ({
                   {item.data.length > 0 ? (
                     item.data.map((emoji) => (
                       <TouchableOpacity
+                        key={emoji}
                         onPress={() => {
                           setEmojiPic(emoji);
                           onSelect(emoji);
