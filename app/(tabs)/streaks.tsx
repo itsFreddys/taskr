@@ -6,7 +6,16 @@ import { useAuth } from "@/lib/auth-context";
 import { Task } from "@/types/database.type";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { addDays, format, isBefore, isSameDay, startOfDay } from "date-fns";
+import {
+  addDays,
+  format,
+  isBefore,
+  isSameDay,
+  isToday,
+  isYesterday,
+  parseISO,
+  startOfDay,
+} from "date-fns";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -35,6 +44,21 @@ const VAR_HEADER = 118;
 // ... (imports remain the same)
 // ✅ Define the Navigator
 const Tab = createMaterialTopTabNavigator();
+
+const calculateNewStreak = (
+  lastDateStr: string | null,
+  currentStreak: number = 0
+): number => {
+  if (!lastDateStr) return 1;
+
+  const lastDate = startOfDay(parseISO(lastDateStr));
+  const today = startOfDay(new Date());
+
+  if (isToday(lastDate)) return currentStreak;
+  if (isYesterday(lastDate)) return currentStreak + 1;
+
+  return 1; // Gap detected, restart streak
+};
 
 // ✅ Create mini-components for the content
 function TasksTab({
@@ -113,7 +137,7 @@ function TasksTab({
             onMoveToTomorrow={onMoveToTomorrow} // 🟢 New
             onDelete={onRemoveTask} // 🟢 New
             // 🟢 Add opacity logic inside TaskCard or here
-            style={{ opacity: item.status === "completed" ? 0.5 : 1 }}
+            // style={{ opacity: item.status === "completed" ? 0.5 : 1 }}
             onPress={() => console.log("Edit Task", item.$id)}
           />
         );
@@ -286,37 +310,63 @@ export default function Streakscreen() {
     }
   };
 
-  const handleToggleTask = async (taskId: string, currentStatus: string) => {
-    const isNowCompleted = currentStatus === "active";
-    const newStatus = isNowCompleted ? "completed" : "active";
+  const handleToggleTask = async (taskId: string, targetStatus: string) => {
+    const isCompleting = targetStatus === "completed";
+    const targetTask = tasks.find((t) => t.$id === taskId);
+    if (!targetTask) return;
 
-    // 🟢 Use ISO string for the Datetime field in Appwrite
-    const completionDate = isNowCompleted ? selectedDate.toISOString() : null;
+    let newStreak = targetTask.streakCount || 0;
+
+    // 🟢 CHANGE 1: Determine the Date and Streak based on action
+    let completionDate: string | null;
+
+    if (isCompleting) {
+      // Moving to Completed
+      newStreak = calculateNewStreak(
+        targetTask.lastCompletedDate ?? null,
+        targetTask.streakCount
+      );
+      completionDate = new Date().toISOString();
+    } else {
+      // 🟢 CHANGE 2: Reactivating (Moving to Active)
+      // If they just incremented the streak today, we subtract 1 to "undo" it
+      // If the streak was from yesterday, we leave it alone.
+      const lastDate = targetTask.lastCompletedDate
+        ? parseISO(targetTask.lastCompletedDate)
+        : null;
+      if (lastDate && isToday(lastDate) && newStreak > 0) {
+        newStreak = newStreak - 1;
+      }
+
+      completionDate = null; // 👈 CRITICAL: This allows filteredTasks to show it as "active"
+    }
 
     try {
-      // 🟢 Optimistic Update with Type Casting
-      setTasks((prevTasks) =>
-        prevTasks.map((t) =>
+      // 🟢 CHANGE 3: Optimistic Update with Type Safety
+      setTasks((prev) =>
+        prev.map((t) =>
           t.$id === taskId
             ? ({
                 ...t,
-                status: newStatus,
+                status: targetStatus,
                 lastCompletedDate: completionDate,
+                streakCount: newStreak,
               } as Task)
             : t
         )
       );
 
+      // 🟢 CHANGE 4: Update Appwrite
       await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
-        status: newStatus,
-        lastCompletedDate: completionDate,
+        status: targetStatus,
+        lastCompletedDate: completionDate, // Will be null if reactivating
+        streakCount: newStreak,
       });
     } catch (error) {
       console.error("Toggle failed:", error);
-      fetchTasks(); // Rollback on error
+      fetchTasks(); // Rollback on network/DB error
     }
   };
-
   // Function to pass scroll events from children to the parent
   const onScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -498,7 +548,7 @@ export default function Streakscreen() {
               value={searchQuery}
               style={styles.globalSearch}
               inputStyle={styles.globalInput}
-              mode="bar" // 🟢 Gives it a modern, rounded look
+              mode="bar"
               autoFocus={true}
             />
           </View>
@@ -514,14 +564,14 @@ export default function Streakscreen() {
             tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
             tabBarIndicatorStyle: {
               backgroundColor: theme.colors.primary,
-              height: 3, // 🟢 Professional thick indicator
+              height: 3,
               borderRadius: 3,
             },
             tabBarStyle: {
               backgroundColor: theme.colors.background,
-              borderBottomWidth: 1, // 🟢 Adds a subtle separation
+              borderBottomWidth: 1,
               borderBottomColor: theme.colors.surfaceVariant,
-              elevation: 0, // 🟢 Remove shadow for a flat look
+              elevation: 0,
               shadowOpacity: 0,
               position: "absolute",
               top: headerHeight,
@@ -546,7 +596,7 @@ export default function Streakscreen() {
               <TasksTab
                 onScroll={onScroll}
                 headerHeight={headerHeight}
-                tasks={filteredTasks} // 🟢 Pass the memoized list here
+                tasks={filteredTasks}
                 activeButton={activeButton}
                 setActiveButton={setActiveButton}
                 onToggleTask={handleToggleTask}

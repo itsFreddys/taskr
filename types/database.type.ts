@@ -43,6 +43,7 @@ export interface Task extends Models.Document {
   hasTimeLimit: boolean;
   duration?: number; // in minutes
   isCompleted: boolean; // only for 'one-time' tasks
+  streakCount: number;
 }
 
 export interface HabitCompletion extends Models.Document {

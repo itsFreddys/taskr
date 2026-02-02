@@ -1,16 +1,44 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Checkbox, Surface, Text, useTheme } from "react-native-paper";
 import CustomMenu from "./CustomMenu";
 
+import { isToday, isYesterday, parseISO, startOfDay } from "date-fns";
+
+const calculateNewStreak = (
+  lastCompletedDate: string | null,
+  currentStreak: number = 0
+): number => {
+  if (!lastCompletedDate) return 1; // First time ever
+
+  const lastDate = startOfDay(parseISO(lastCompletedDate));
+
+  if (isToday(lastDate)) {
+    return currentStreak; // Already completed today, don't increment
+  }
+
+  if (isYesterday(lastDate)) {
+    return currentStreak + 1; // Completed yesterday, continue streak
+  }
+
+  return 1; // More than a day gap, reset to 1
+};
+
+// 🟢 Helper to format seconds into MM:SS
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
 export const TaskCard = ({
   task,
-  onPress,
   onToggleComplete,
   onMoveToTomorrow,
   onRemove,
+  onPress,
   style,
 }: any) => {
   const theme = useTheme();
@@ -21,11 +49,47 @@ export const TaskCard = ({
   const [rightVisible, setRightVisible] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
 
+  // Timer logic
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState((task.timers?.[0] || 0) * 60);
+
+  useEffect(() => {
+    let interval: any;
+    if (isTimerRunning && timeLeft > 0) {
+      interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
+    } else if (timeLeft === 0) {
+      setIsTimerRunning(false);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, timeLeft]);
+
   const handleToggle = () => {
-    !isCompleted
-      ? Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      : Haptics.selectionAsync();
-    onToggleComplete?.(task.$id, task.status);
+    const nextStatus = isCompleted ? "active" : "completed";
+
+    if (nextStatus === "completed") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.selectionAsync(); // Subtle "undo" haptic
+    }
+
+    // We send the ID and the status we WANT it to be
+    onToggleComplete(task.$id, nextStatus);
+    setLeftVisible(false); // Ensure menu closes
+  };
+
+  const handleTimerPress = () => {
+    if (timeLeft > 0) {
+      setIsTimerRunning(!isTimerRunning);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else {
+      setRightVisible(true);
+    }
+  };
+
+  const startTimer = (mins: number) => {
+    setTimeLeft(mins * 60);
+    setIsTimerRunning(true);
+    setRightVisible(false);
   };
 
   const onLongPressLeft = (event: any) => {
@@ -47,24 +111,29 @@ export const TaskCard = ({
       style={[styles.card, isCompleted && styles.completedCard, style]}
       elevation={isCompleted ? 0 : 1}
     >
-      {/* 🟢 Inner container to fix the Shadow/Overflow warning */}
       <View style={styles.innerContainer}>
         <View style={styles.cardLayout}>
-          {/* 🟢 LEFT ZONE: Tap to Complete | Long Press for Menu */}
-          <View style={styles.flexFill}>
+          {/* LEFT ZONE */}
+          <View style={styles.leftContainer}>
             <CustomMenu
               visible={leftVisible}
               onDismiss={() => setLeftVisible(false)}
               position={menuPos}
               items={[
+                // 🟢 DYNAMIC ITEM: Logic to Reactivate or Complete
                 {
-                  label: isCompleted ? "Mark Active" : "Mark Complete",
+                  label: isCompleted ? "Reactivate Task" : "Mark Complete",
                   onPress: handleToggle,
                 },
-                {
-                  label: "Postpone Tomorrow",
-                  onPress: () => onMoveToTomorrow(task.$id),
-                },
+                // Postpone is hidden if completed to keep menu clean
+                ...(!isCompleted
+                  ? [
+                      {
+                        label: "Postpone Tomorrow",
+                        onPress: () => onMoveToTomorrow(task.$id),
+                      },
+                    ]
+                  : []),
                 {
                   label: "Remove Task",
                   onPress: () => onRemove(task.$id),
@@ -74,71 +143,128 @@ export const TaskCard = ({
               anchor={
                 <TouchableOpacity
                   style={styles.leftZone}
-                  onPress={handleToggle} // 🟢 Changed to handleToggle
-                  onLongPress={onLongPressLeft}
+                  onPress={handleToggle} // Quick tap toggle
+                  onLongPress={onLongPressLeft} // Long press for Undo/Delete
                   delayLongPress={300}
                 >
                   {isCompleted && (
                     <View style={styles.actionZone}>
-                      {/* Checkbox stays for visual confirmation, but tap is handled by the zone */}
-                      <Checkbox
-                        status="checked"
-                        onPress={handleToggle}
-                        color={theme.colors.primary}
-                      />
+                      <Checkbox status="checked" color={theme.colors.primary} />
                     </View>
                   )}
 
+                  <View style={styles.emojiContainer}>
+                    <Text style={styles.emoji}>{task.emotePic || "✅"}</Text>
+                  </View>
+
                   <View style={styles.infoZone}>
                     <View style={styles.titleRow}>
-                      <Text style={styles.emoji}>{task.emotePic || "✅"}</Text>
                       <Text
                         style={[
                           styles.title,
                           isCompleted && styles.completedText,
                         ]}
-                        numberOfLines={1}
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
                       >
                         {task.title}
                       </Text>
                     </View>
+
+                    {/* Meta Row stays hidden for completed tasks for a "finished" look */}
+                    {!isCompleted && (
+                      <View style={styles.metaRow}>
+                        {task.startTime && (
+                          <View style={styles.metaItem}>
+                            <MaterialCommunityIcons
+                              name="clock-outline"
+                              size={14}
+                              color={theme.colors.outline}
+                            />
+                            <Text style={styles.metaText}>
+                              {task.startTime}
+                            </Text>
+                          </View>
+                        )}
+                        {task.timers?.[0] && !isTimerRunning && (
+                          <View style={styles.metaItem}>
+                            <MaterialCommunityIcons
+                              name="timer-outline"
+                              size={14}
+                              color={theme.colors.primary}
+                            />
+                            <Text
+                              style={[
+                                styles.metaText,
+                                { color: theme.colors.primary },
+                              ]}
+                            >
+                              {task.timers[0]}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </View>
                 </TouchableOpacity>
               }
             />
           </View>
 
-          {/* 🟢 RIGHT ZONE: Tap for Details | Long Press for Timer/More */}
-          {!isCompleted && (
-            <View style={styles.rightContainer}>
+          {/* 🟢 RIGHT ZONE: Always wrapped in rightContainer */}
+          <View
+            style={[
+              styles.rightContainer,
+              !isCompleted && isTimerRunning && styles.expandedRight,
+            ]}
+          >
+            {isCompleted ? (
+              /* 🏆 Streak Display (Only when completed) */
+              task.streakCount > 0 && (
+                <View style={styles.streakZone}>
+                  <MaterialCommunityIcons
+                    name="fire"
+                    size={24}
+                    color="#ff9800"
+                  />
+                  <Text style={styles.streakNumber}>{task.streakCount}</Text>
+                </View>
+              )
+            ) : (
+              /* ⏱️ Timer Display (Only when active) */
               <CustomMenu
                 visible={rightVisible}
                 onDismiss={() => setRightVisible(false)}
                 position={menuPos}
                 items={[
-                  {
-                    label: "Start Timer",
-                    onPress: () => console.log("Start Timer"),
-                  },
-                  { label: "Edit Task", onPress: onPress },
+                  { label: "Focus (25m)", onPress: () => startTimer(25) },
+                  { label: "Deep (50m)", onPress: () => startTimer(50) },
+                  { label: "Edit Task", onPress: () => onPress?.() },
                 ]}
                 anchor={
                   <TouchableOpacity
                     style={styles.rightZone}
-                    onPress={onPress} // 🟢 Stays as details/edit
+                    onPress={handleTimerPress}
                     onLongPress={onLongPressRight}
                     delayLongPress={300}
                   >
                     <MaterialCommunityIcons
-                      name="timer-outline"
-                      size={24}
-                      color={theme.colors.outlineVariant}
+                      name={
+                        isTimerRunning ? "pause-circle" : "play-circle-outline"
+                      }
+                      size={28}
+                      color={theme.colors.primary}
                     />
+                    {(isTimerRunning || timeLeft > 0) && (
+                      <Text style={styles.liveTimerText}>
+                        {formatTime(timeLeft)}
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 }
               />
-            </View>
-          )}
+            )}
+          </View>
         </View>
       </View>
     </Surface>
@@ -153,56 +279,67 @@ const createStyles = (theme: any) =>
       borderRadius: 16,
       backgroundColor: theme.colors.surface,
     },
-    innerContainer: {
-      borderRadius: 16,
-      overflow: "hidden", // 🟢 Clipping happens here, silencing the warning
-      flex: 1,
-    },
+    innerContainer: { borderRadius: 16, overflow: "hidden", flex: 1 },
     completedCard: {
       backgroundColor: theme.colors.surfaceVariant,
       opacity: 0.6,
     },
-    cardLayout: {
-      flexDirection: "row",
-      height: 72,
+    cardLayout: { flexDirection: "row", height: 80 },
+    leftContainer: { flex: 1 },
+    rightContainer: {
+      width: 60,
+      justifyContent: "center",
       alignItems: "center",
+      borderLeftWidth: 1,
+      borderLeftColor: theme.colors.surfaceVariant,
     },
-    flexFill: { flex: 1 },
-    rightContainer: { width: 60 },
+    expandedRight: { width: 100 },
     leftZone: {
-      height: "100%",
+      height: 80,
       flexDirection: "row",
       alignItems: "center",
       paddingLeft: 16,
     },
+    emojiContainer: {
+      height: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
     rightZone: {
-      width: 60,
+      width: "100%",
       height: "100%",
       alignItems: "center",
       justifyContent: "center",
-      borderLeftWidth: 1,
-      borderLeftColor: theme.colors.surfaceVariant,
     },
-    actionZone: {
-      marginRight: 8,
-      justifyContent: "center",
-    },
-    infoZone: {
-      flex: 1,
-      justifyContent: "center", // 🟢 Absolute vertical center for text
-    },
-    titleRow: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    emoji: { fontSize: 18, marginRight: 8 },
+    infoZone: { flex: 1, justifyContent: "center", paddingRight: 2 },
+    titleRow: { flexDirection: "row", alignItems: "center" },
+    emoji: { fontSize: 18 },
     title: {
       fontSize: 16,
       fontWeight: "600",
       color: theme.colors.onSurface,
+      flexShrink: 1,
     },
     completedText: {
       textDecorationLine: "line-through",
       color: theme.colors.outline,
     },
+    metaRow: { flexDirection: "row", marginTop: 4 },
+    metaItem: { flexDirection: "row", alignItems: "center", marginRight: 12 },
+    metaText: { fontSize: 12, marginLeft: 4, color: theme.colors.outline },
+    streakZone: { alignItems: "center", justifyContent: "center" },
+    streakNumber: {
+      fontSize: 14,
+      fontWeight: "bold",
+      color: "#ff9800",
+      marginTop: -2,
+    },
+    liveTimerText: {
+      fontSize: 12,
+      fontWeight: "bold",
+      color: theme.colors.primary,
+      marginTop: 2,
+    },
+    actionZone: { marginRight: 8 },
   });
