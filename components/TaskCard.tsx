@@ -51,7 +51,7 @@ export const TaskCard = ({
   task,
   onToggleComplete,
   onMoveToTomorrow,
-  onRemove,
+  onDelete,
   onPress,
   style,
 }: any) => {
@@ -103,6 +103,17 @@ export const TaskCard = ({
     Haptics.selectionAsync();
     onToggleComplete(task.$id, "active");
     setLeftVisible(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      // 1. Delete from Appwrite
+      await databases.deleteDocument(DATABASE_ID, TASKS_TABLE_ID, id);
+      // 2. Refresh your local state or re-fetch tasks
+      fetchTasks();
+    } catch (error) {
+      console.error("Delete failed:", error);
+    }
   };
 
   const handleTimerPress = () => {
@@ -162,8 +173,15 @@ export const TaskCard = ({
                     ]
                   : []),
                 {
-                  label: "Remove Task",
-                  onPress: () => onRemove(task.$id),
+                  label: "Delete Task",
+                  onPress: () => {
+                    if (onDelete) {
+                      onDelete(task.$id); // 🟢 Call onDelete, NOT onRemove
+                      setLeftVisible(false);
+                    } else {
+                      console.warn("onDelete prop is missing for:", task.title);
+                    }
+                  },
                   danger: true,
                 },
               ]}

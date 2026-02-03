@@ -69,7 +69,7 @@ function TasksTab({
   setActiveButton,
   onToggleTask,
   onMoveToTomorrow,
-  onRemoveTask,
+  onDelete,
 }: any) {
   const theme = useTheme();
   const styles = createStyles(theme, headerHeight);
@@ -135,7 +135,7 @@ function TasksTab({
             task={item}
             onToggleComplete={onToggleTask}
             onMoveToTomorrow={onMoveToTomorrow} // 🟢 New
-            onDelete={onRemoveTask} // 🟢 New
+            onDelete={onDelete} // 🟢 New
             // 🟢 Add opacity logic inside TaskCard or here
             // style={{ opacity: item.status === "completed" ? 0.5 : 1 }}
             onPress={() => console.log("Edit Task", item.$id)}
@@ -229,18 +229,18 @@ export default function Streakscreen() {
   };
 
   // 🟢 Renamed and updated to set status to "inactive"
-  const handleRemoveTask = async (taskId: string) => {
+  const handleDelete = async (taskId: string) => {
     try {
-      // Optimistic Update: Remove from the current view
+      // 🟢 1. Optimistic Update: Remove from UI immediately
       setTasks((prev) => prev.filter((t) => t.$id !== taskId));
 
-      await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
-        status: "inactive", // 🟢 No longer deleting, just marking as inactive
-      });
+      // 2. Delete from Appwrite
+      await databases.deleteDocument(DATABASE_ID, TASKS_TABLE_ID, taskId);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error("Removal failed", error);
+      console.error("Failed to delete task:", error);
+      // 3. Rollback: If DB delete fails, bring tasks back
       fetchTasks();
     }
   };
@@ -601,7 +601,7 @@ export default function Streakscreen() {
                 setActiveButton={setActiveButton}
                 onToggleTask={handleToggleTask}
                 onMoveToTomorrow={handleMoveToTomorrow}
-                onRemoveTask={handleRemoveTask}
+                onDelete={handleDelete}
               />
             )}
           </Tab.Screen>
