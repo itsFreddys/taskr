@@ -1,8 +1,8 @@
 import { CustomEmojiPicker } from "@/components/CustomEmojiPicker";
 import { CustomTimerPicker } from "@/components/CustomTimerPicker";
-import { DATABASE_ID, databases, TASKS_TABLE_ID } from "@/lib/appwrite"; // Update with your actual task collection ID
+import { DATABASE_ID, databases, TASKS_TABLE_ID } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
   Modal,
@@ -14,30 +14,22 @@ import {
 import {
   Button,
   IconButton,
-  List,
   TextInput as PaperTextInput,
-  SegmentedButtons,
   Surface,
-  Switch,
   Text,
   useTheme,
 } from "react-native-paper";
-import { TimeSelector } from "./TimeSelector";
+
+// 🟢 Internal Imports
+import { EmoteSelectorSection } from "@/components/task-form/EmoteSelectorSection";
+import { ScheduleSection } from "@/components/task-form/ScheduleSection";
+import { TimerManagementSection } from "@/components/task-form/TimerManagementSection";
 
 interface CreateTaskProps {
   visible: boolean;
   onClose: () => void;
-  selectedDate: Date; // 🟢 Passed from your calendar
+  selectedDate: Date;
 }
-
-const formatSecondsToTime = (totalSeconds: number) => {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-
-  if (h > 0) return `${h}:${m < 10 ? "0" + m : m}:${s < 10 ? "0" + s : s}`;
-  return `${m}:${s < 10 ? "0" + s : s}`;
-};
 
 export const CreateTask = ({
   visible,
@@ -46,20 +38,19 @@ export const CreateTask = ({
 }: CreateTaskProps) => {
   const { user } = useAuth();
   const theme = useTheme();
-  const styles = createStyles(theme);
+  const styles: any = createStyles(theme);
 
-  // --- Basic State ---
+  // --- State Management ---
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [emojiPic, setEmojiPic] = useState("✅");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // --- Logic State (Hidden by default) ---
   const [isRecurring, setIsRecurring] = useState(false);
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>([]);
+  const [isAllDay, setIsAllDay] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // schedule logic
+  // Time States
   const [startHour, setStartHour] = useState("10");
   const [startMin, setStartMin] = useState("00");
   const [startAmPm, setStartAmPm] = useState("AM");
@@ -67,79 +58,98 @@ export const CreateTask = ({
   const [endMin, setEndMin] = useState("00");
   const [endAmPm, setEndAmPm] = useState("AM");
 
-  // timers logic
-  const [timers, setTimers] = useState<string[]>([]);
+  // Timer States
+  const [timers, setTimers] = useState<number[]>([]);
+  const [defaultTimer, setDefaultTimer] = useState<number | null>(null);
   const [isCustomTimer, setIsCustomTimer] = useState(false);
-  const [timerOptions, setTimerOptions] = useState<string[]>([
-    "0:30",
-    "1:00",
-    "2:00",
-    "5:00",
-    "10:00",
-    "15:00",
-    "20:00",
-    "30:00",
-    "40:00",
-    "50:00",
-    "60:00",
+  const [timerOptions, setTimerOptions] = useState<number[]>([
+    30, // 0:30
+    60, // 1:00
+    300, // 5:00
+    600, // 10:00
+    1500, // 25:00
+    1800, // 30:00
+    2700, // 45:00
+    3600, // 1:00:00
   ]);
 
-  const [isAllDay, setIsAllDay] = useState(true);
-  const [hasTimeLimit, setHasTimeLimit] = useState(false);
-  const [duration, setDuration] = useState("30");
-
   const handleAddCustomTimer = (seconds: number) => {
-    const formattedTime = formatSecondsToTime(seconds);
+    // Add to options if it's a new unique time
+    if (!timerOptions.includes(seconds)) {
+      setTimerOptions((prev) => [seconds, ...prev]);
+    }
 
-    // Add to the START of the options list
-    setTimerOptions((prev) => [formattedTime, ...prev]);
+    // Auto-select it
+    toggleTimer(seconds);
+    setIsCustomTimer(false);
+  };
 
-    // Auto-select this specific time string
-    setTimers((prev) => [...prev, formattedTime]);
+  // --- Logic Helpers ---
+  const toggleTimer = (time: number) => {
+    // Changed from string to number
+    setTimers((prev) => {
+      const isSelected = prev.includes(time);
+      if (!isSelected && prev.length >= 3) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        return prev;
+      }
+      const next = isSelected
+        ? prev.filter((t) => t !== time)
+        : [...prev, time];
 
-    setIsCustomTimer(false); // Hide the picker
+      // Logic for Default/Primary Timer
+      if (next.length === 1) setDefaultTimer(next[0]);
+      else if (isSelected && defaultTimer === time)
+        setDefaultTimer(next.length > 0 ? next[0] : null);
+
+      return next;
+    });
   };
 
   const handleCreate = async () => {
     if (!user || !title) return;
-    setError(null);
+    setError(null); // Clear previous errors
 
     try {
-      // 1. Helper to convert 12h to 24h string "HH:mm"
+      // 1. Helper for the Schedule (Strings: "HH:mm")
       const formatTo24h = (h: string, m: string, ap: string) => {
-        let hours = parseInt(h);
-        if (ap === "PM" && hours !== 12) hours += 12;
-        if (ap === "AM" && hours === 12) hours = 0;
-        return `${hours.toString().padStart(2, "0")}:${m}`;
+        let hrs = parseInt(h);
+        if (ap === "PM" && hrs !== 12) hrs += 12;
+        if (ap === "AM" && hrs === 12) hrs = 0;
+        return `${hrs.toString().padStart(2, "0")}:${m}`;
       };
 
-      const startTimeFormatted = isAllDay
-        ? null
-        : formatTo24h(startHour, startMin, startAmPm);
-      const endTimeFormatted = isAllDay
-        ? null
-        : formatTo24h(endHour, endMin, endAmPm);
-
+      // 2. Prepare the Payload
       const payload = {
         title,
         description,
         creatorId: user.$id,
-        emotePic: emojiPic, // 🟢 Match schema key "emotePic"
+        emotePic: emojiPic,
         type: isRecurring ? "recurring" : "one-time",
-        frequency: isRecurring ? "weekly" : "once",
+        // Appwrite usually expects string arrays for daysOfWeek
         daysOfWeek: isRecurring ? daysOfWeek : [],
-        timers: timers, // 🟢 Passing the string array of selected timers
+
+        // 🟢 TIMERS: Ensure these are passed as numbers
+        // If timers is [300, 600], Appwrite needs to see [300, 600]
+        timers: timers,
+        defaultTimer: defaultTimer, // This should be a number or null
+
         isAllDay,
-        startTime: startTimeFormatted,
-        endTime: endTimeFormatted,
-        hasTimeLimit: timers.length > 0, // 🟢 If timers are selected, set to true
+        startTime: isAllDay
+          ? null
+          : formatTo24h(startHour, startMin, startAmPm),
+        endTime: isAllDay ? null : formatTo24h(endHour, endMin, endAmPm),
+
+        // Dates
         startDate: selectedDate.toISOString(),
-        endDate: isRecurring ? null : selectedDate.toISOString(), // 🟢 End date for one-time
+        // If it's one-time, endDate is the same day. If recurring, usually null.
+        endDate: isRecurring ? null : selectedDate.toISOString(),
+
         isCompleted: false,
-        isShared: false,
         category: "task",
       };
 
+      // 3. Appwrite Call
       await databases.createDocument(
         DATABASE_ID,
         TASKS_TABLE_ID,
@@ -148,44 +158,20 @@ export const CreateTask = ({
       );
 
       resetAndClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error creating task");
+    } catch (err: any) {
+      console.error("Appwrite Create Error:", err);
+      setError(err.message);
     }
   };
 
   const resetAndClose = () => {
     setTitle("");
-    setDescription("");
-    setEmojiPic("✅");
-    setIsRecurring(false);
-    setDaysOfWeek([]);
-    setTimers([]); // 🟢 Clear selections
-    setTimerOptions([
-      // 🟢 Reset presets to defaults
-      "0:30",
-      "1:00",
-      "2:00",
-      "5:00",
-      "10:00",
-      "15:00",
-      "20:00",
-      "30:00",
-      "40:00",
-      "50:00",
-      "60:00",
-    ]);
-    setIsAllDay(true);
-    setIsCustomTimer(false);
+    setTimers([]);
     onClose();
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
@@ -195,256 +181,85 @@ export const CreateTask = ({
 
         <Surface style={styles.modalContent} elevation={5}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Task</Text>
               <IconButton icon="close" onPress={onClose} />
             </View>
 
-            {/* Emoji & Title */}
-            <View style={styles.center}>
-              <TouchableOpacity
-                onPress={() => setEmojiPickerVisible(true)}
-                style={styles.emojiContainer}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.emojiDisplay}>{emojiPic}</Text>
-                <View style={styles.addIconBadge}>
-                  <Ionicons
-                    name="add-circle" // 🟢 Changed to filled circle for better visibility
-                    size={26}
-                    color={theme.colors.primary} // 🟢 Use theme color for professional look
-                  />
-                </View>
-              </TouchableOpacity>
-            </View>
+            <EmoteSelectorSection
+              emoji={emojiPic}
+              onPress={() => setEmojiPickerVisible(true)}
+              theme={theme}
+              styles={styles}
+            />
 
             <PaperTextInput
-              label="What needs to be done?"
+              label="Task Title"
               mode="outlined"
               value={title}
               onChangeText={setTitle}
               style={styles.input}
             />
 
-            {/* Progressive Disclosure: Schedule Toggle */}
-            <View style={styles.extrasContainer}>
-              <List.Accordion
-                title="Schedule & Frequency"
-                left={(props) => <List.Icon {...props} icon="calendar-sync" />}
-                style={styles.accordion}
-                contentStyle={styles.accordionContentStyle}
-              >
-                <View style={styles.accordionContent}>
-                  <View style={styles.row}>
-                    <Text style={{ fontSize: 16, fontWeight: "400" }}>
-                      All Day
-                    </Text>
-                    <Switch
-                      value={isAllDay}
-                      onValueChange={setIsAllDay}
-                      trackColor={{
-                        false: theme.colors.surfaceVariant,
-                        true: theme.colors.primary,
-                      }}
-                    />
-                  </View>
+            <ScheduleSection
+              isAllDay={isAllDay}
+              setIsAllDay={setIsAllDay}
+              isRecurring={isRecurring}
+              setIsRecurring={setIsRecurring}
+              daysOfWeek={daysOfWeek}
+              setDaysOfWeek={setDaysOfWeek}
+              scheduleProps={{
+                start: {
+                  hour: startHour,
+                  minute: startMin,
+                  ampm: startAmPm,
+                  onTimeChange: (h: string, m: string, ap: string) => {
+                    setStartHour(h);
+                    setStartMin(m);
+                    setStartAmPm(ap);
+                  },
+                },
+                end: {
+                  hour: endHour,
+                  minute: endMin,
+                  ampm: endAmPm,
+                  onTimeChange: (h: string, m: string, ap: string) => {
+                    setEndHour(h);
+                    setEndMin(m);
+                    setEndAmPm(ap);
+                  },
+                },
+              }}
+            />
 
-                  {!isAllDay && (
-                    <View style={{ marginTop: 8 }}>
-                      <TimeSelector
-                        label="Start Time"
-                        hour={startHour}
-                        minute={startMin}
-                        ampm={startAmPm}
-                        onTimeChange={(h, m, ap) => {
-                          setStartHour(h);
-                          setStartMin(m);
-                          setStartAmPm(ap);
-                        }}
-                      />
-
-                      <TimeSelector
-                        label="End Time"
-                        hour={endHour}
-                        minute={endMin}
-                        ampm={endAmPm}
-                        onTimeChange={(h, m, ap) => {
-                          setEndHour(h);
-                          setEndMin(m);
-                          setEndAmPm(ap);
-                        }}
-                      />
-                    </View>
-                  )}
-                  {/* Frequency */}
-                  <View style={styles.row}>
-                    <Text style={styles.rowLabel}>Repeat</Text>
-                    <SegmentedButtons
-                      value={isRecurring ? "recurring" : "once"}
-                      onValueChange={(v) => {
-                        const recurring = v === "recurring";
-                        setIsRecurring(recurring);
-
-                        if (recurring) {
-                          // 🟢 Default to Mon, Tue, Wed, Thu, Fri when "Weekly" is selected
-                          setDaysOfWeek(["1", "2", "3", "4", "5"]);
-                        } else {
-                          // 🟢 Clear days when switching back to "Once"
-                          // (This ensures one-time tasks don't carry hidden recurring data)
-                          setDaysOfWeek([]);
-                        }
-                      }}
-                      buttons={[
-                        { value: "once", label: "Once" },
-                        { value: "recurring", label: "Weekly" },
-                      ]}
-                      style={styles.segmented}
-                    />
-                  </View>
-
-                  {isRecurring && (
-                    <View style={styles.dayRow}>
-                      {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => {
-                        const isSelected = daysOfWeek.includes(i.toString());
-                        return (
-                          <TouchableOpacity
-                            key={i}
-                            style={[
-                              styles.dayCircle,
-                              isSelected && styles.selectedCircle,
-                            ]}
-                            onPress={() => {
-                              const val = i.toString();
-                              setDaysOfWeek((prev) =>
-                                prev.includes(val)
-                                  ? prev.filter((d) => d !== val)
-                                  : [...prev, val]
-                              );
-                            }}
-                          >
-                            <Text
-                              style={{
-                                color: isSelected
-                                  ? "white"
-                                  : theme.colors.primary,
-                                fontWeight: "500",
-                              }}
-                            >
-                              {day}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>
-              </List.Accordion>
-            </View>
-
-            <View style={styles.extrasContainer}>
-              <List.Accordion
-                title="Timers"
-                left={(props) => <List.Icon {...props} icon="timer" />}
-                style={styles.accordion}
-                contentStyle={styles.accordionContentStyle}
-              >
-                <View style={styles.accordionContent}>
-                  {/* Timers */}
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.timerScrollContainer}
-                  >
-                    {/* <View style={styles.timerRow}> */}
-                    {timerOptions.map((time, i) => {
-                      const isSelected = timers.includes(time);
-                      return (
-                        <TouchableOpacity
-                          key={`${time}-${i}`}
-                          style={[
-                            styles.timersCircle,
-                            isSelected && styles.selectedTimersSelected,
-                          ]}
-                          onPress={() => {
-                            setTimers((prev) =>
-                              prev.includes(time)
-                                ? prev.filter((t) => t !== time)
-                                : [...prev, time]
-                            );
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: isSelected
-                                ? "white"
-                                : theme.colors.primary,
-                              fontWeight: "500",
-                            }}
-                          >
-                            {time}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                    {/* </View> */}
-                  </ScrollView>
-
-                  {/* 🟢 Trigger for Custom Timer */}
-                  <View style={styles.row}>
-                    <Text style={styles.rowLabel}>Custom Timer</Text>
-                    <TouchableOpacity
-                      style={[
-                        styles.trigger,
-                        { backgroundColor: theme.colors.surfaceVariant },
-                      ]}
-                      onPress={() => setIsCustomTimer(!isCustomTimer)}
-                    >
-                      <Text
-                        style={[
-                          styles.timeText,
-                          { color: theme.colors.primary },
-                        ]}
-                      >
-                        {/* Show placeholder or current selection if you want */}
-                        Set Custom
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* 🟢 Conditional Picker (Slides open like TimeSelector) */}
-                  {isCustomTimer && (
-                    <CustomTimerPicker
-                      onCancel={() => setIsCustomTimer(false)}
-                      onAdd={handleAddCustomTimer}
-                    />
-                  )}
-                </View>
-              </List.Accordion>
-            </View>
+            <TimerManagementSection
+              timers={timers}
+              toggleTimer={toggleTimer}
+              timerOptions={timerOptions}
+              defaultTimer={defaultTimer}
+              setDefaultTimer={setDefaultTimer}
+              isCustomTimer={isCustomTimer}
+              setIsCustomTimer={setIsCustomTimer}
+              handleAddCustomTimer={handleAddCustomTimer}
+            />
 
             <PaperTextInput
-              label="Description (Optional)"
+              label="Notes"
               mode="outlined"
               multiline
-              numberOfLines={3}
               value={description}
               onChangeText={setDescription}
               style={styles.input}
             />
 
-            {/* Progressive Disclosure: Time Blocking */}
-
-            <View style={styles.footer}>
-              <Button
-                mode="contained"
-                onPress={handleCreate}
-                disabled={!title}
-                style={styles.createBtn}
-              >
-                Create Task
-              </Button>
-            </View>
+            <Button
+              mode="contained"
+              onPress={handleCreate}
+              disabled={!title}
+              style={styles.createBtn}
+            >
+              Create Task
+            </Button>
 
             {error && <Text style={styles.error}>{error}</Text>}
           </ScrollView>
@@ -454,11 +269,11 @@ export const CreateTask = ({
       <CustomEmojiPicker
         visible={emojiPickerVisible}
         currentEmote={emojiPic}
-        onClose={() => setEmojiPickerVisible(false)}
-        onSelect={(emoji) => {
-          setEmojiPic(emoji);
+        onSelect={(e) => {
+          setEmojiPic(e);
           setEmojiPickerVisible(false);
         }}
+        onClose={() => setEmojiPickerVisible(false)}
       />
     </Modal>
   );
@@ -485,147 +300,7 @@ const createStyles = (theme: any) =>
       marginBottom: 20,
     },
     modalTitle: { fontSize: 24, fontWeight: "bold" },
-    center: {
-      justifyContent: "center",
-      alignItems: "center",
-      marginBottom: 24,
-      marginTop: 10,
-    },
-    emojiContainer: {
-      width: 100,
-      height: 100,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: theme.colors.surface, // 🟢 Optional: subtle background circle
-      borderRadius: 50,
-    },
-    emojiDisplay: {
-      fontSize: 72, // 🟢 Slightly smaller for better fit in container
-      textAlign: "center",
-      includeFontPadding: false, // 🟢 Android specific fix for centering
-    },
-    addIconBadge: {
-      position: "absolute",
-      bottom: 0,
-      right: 0,
-      backgroundColor: theme.colors.background, // 🟢 Masking background
-      borderRadius: 15,
-    },
     input: { marginBottom: 16 },
-    extrasContainer: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      marginBottom: 16,
-      overflow: "hidden",
-      // borderWidth: 1,
-      // borderColor: theme.colors.outlineVariant,
-    },
-    accordion: {
-      backgroundColor: theme.colors.surface,
-      // paddingHorizontal: 8,
-      paddingHorizontal: 0,
-      paddingVertical: 0,
-    },
-    accordionContentStyle: {
-      paddingLeft: 0, // 🔑 removes Material list indent
-    },
-    accordionContent: {
-      paddingRight: 16,
-      paddingLeft: 16,
-      paddingBottom: 16,
-      marginTop: -8,
-      // alignItems: "center",
-    },
-    timerShowcase: {
-      backgroundColor: theme.colors.surfaceVariant,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
-      // borderWidth: 1,
-      // borderColor: theme.colors.outlineVariant,
-    },
-    // Inside createStyles
-    trigger: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 10,
-      minWidth: 110,
-      alignItems: "center",
-    },
-    timeText: {
-      fontSize: 16,
-      fontWeight: "700",
-    },
-    segButton: { marginVertical: 12, alignSelf: "center" },
-    allDayListItem: {
-      paddingLeft: 0,
-      paddingRight: 0,
-      marginLeft: -8, // 🟢 Counter-align with the "Schedule & Frequency" title
-    },
-    dayRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginVertical: 10,
-      paddingHorizontal: 2,
-      width: "100%",
-    },
-    dayCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    selectedCircle: { backgroundColor: theme.colors.primary },
-    footer: { marginTop: 24, marginBottom: 40 },
-    createBtn: { borderRadius: 12, paddingVertical: 4 },
-    error: { color: theme.colors.error, textAlign: "center", marginTop: 8 },
-    row: {
-      width: "100%",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingVertical: 12,
-    },
-    rowLabel: {
-      fontSize: 16,
-      fontWeight: "400",
-    },
-    timerScrollContainer: {
-      flexDirection: "row",
-      paddingVertical: 10,
-      alignItems: "center",
-      // paddingRight: 20, // 🟢 Extra padding at the end of the scroll
-    },
-    timerRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: 16,
-      paddingHorizontal: 2,
-      width: "100%",
-    },
-    timersCircle: {
-      width: 75,
-      height: 38,
-      marginRight: 10,
-      borderRadius: 19,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    selectedTimersSelected: {
-      backgroundColor: theme.colors.primary,
-    },
-
-    helperText: {
-      fontSize: 13,
-      opacity: 0.6,
-      marginTop: 4,
-    },
-    segmented: {
-      width: 180,
-    },
+    createBtn: { marginTop: 20, marginBottom: 30, borderRadius: 12 },
+    error: { color: theme.colors.error, textAlign: "center", marginTop: 10 },
   });

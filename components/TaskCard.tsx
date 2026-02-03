@@ -27,9 +27,17 @@ const calculateNewStreak = (
 };
 
 // 🟢 Helper to format seconds into MM:SS
-const formatTime = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+const formatTimeDisplay = (time: any) => {
+  if (!time) return "0:00";
+  if (typeof time === "string" && time.includes(":")) return time;
+
+  const totalSeconds = Number(time);
+  if (isNaN(totalSeconds)) return time;
+
+  // If the number is small (e.g., < 120), you might be treating it as minutes.
+  // But if you are storing raw seconds in Appwrite, use this:
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
@@ -51,7 +59,15 @@ export const TaskCard = ({
 
   // Timer logic
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState((task.timers?.[0] || 0) * 60);
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const rawValue = task.timers?.[0] || 0;
+    if (typeof rawValue === "string" && rawValue.includes(":")) {
+      const [m, s] = rawValue.split(":").map(Number);
+      return m * 60 + (s || 0);
+    }
+    // If your logic treats timers[0] as minutes (e.g. 25), keep the * 60
+    return Number(rawValue) * 60;
+  });
 
   useEffect(() => {
     let interval: any;
@@ -199,7 +215,8 @@ export const TaskCard = ({
                                 { color: theme.colors.primary },
                               ]}
                             >
-                              {task.timers[0]}
+                              {/* Use the formatter here */}
+                              {formatTimeDisplay(task.timers[0])}
                             </Text>
                           </View>
                         )}
@@ -257,7 +274,7 @@ export const TaskCard = ({
                     />
                     {(isTimerRunning || timeLeft > 0) && (
                       <Text style={styles.liveTimerText}>
-                        {formatTime(timeLeft)}
+                        {formatTimeDisplay(timeLeft)}
                       </Text>
                     )}
                   </TouchableOpacity>

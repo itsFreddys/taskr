@@ -8,19 +8,48 @@ interface CustomTimerPickerProps {
   onCancel: () => void;
 }
 
-export const CustomTimerPicker = ({ onAdd, onCancel }: CustomTimerPickerProps) => {
+export const CustomTimerPicker = ({
+  onAdd,
+  onCancel,
+}: CustomTimerPickerProps) => {
   const theme = useTheme();
   // Using a Date object to track duration (e.g., 00:01:30 for 1min 30sec)
-  const [date, setDate] = useState(new Date(0, 0, 0, 0, 0, 0)); 
+  const [date, setDate] = useState(new Date(0, 0, 0, 0, 0, 0));
 
   const handleAdd = () => {
-    // Calculate total seconds to save to Appwrite/State
-    const totalSeconds = date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
-    onAdd(totalSeconds);
+    // 1. Safety check: Ensure date is a valid Date object
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      console.error("Invalid date object in picker");
+      return;
+    }
+
+    // 2. Calculate total seconds
+    // Note: In 'countdown' mode on iOS, the hours/mins/secs are stored
+    // in the time portion of the date object.
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+
+    const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+    // 3. ⚠️ IMPORTANT: Prevent adding a "0:00" timer
+    if (totalSeconds <= 0) {
+      onCancel(); // Or show an error
+      return;
+    }
+
+    // 4. Force to Integer just in case
+    onAdd(Math.floor(totalSeconds));
   };
 
   return (
-    <Surface style={[styles.container, { backgroundColor: theme.colors.surfaceVariant }]} elevation={1}>
+    <Surface
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.surfaceVariant },
+      ]}
+      elevation={1}
+    >
       <View style={styles.pickerContainer}>
         <DateTimePicker
           value={date}
@@ -35,19 +64,15 @@ export const CustomTimerPicker = ({ onAdd, onCancel }: CustomTimerPickerProps) =
       </View>
 
       <View style={styles.buttonRow}>
-        <Button 
-          mode="text" 
-          onPress={onCancel} 
+        <Button
+          mode="text"
+          onPress={onCancel}
           textColor={theme.colors.error}
           style={styles.flexBtn}
         >
           Cancel
         </Button>
-        <Button 
-          mode="contained" 
-          onPress={handleAdd}
-          style={styles.flexBtn}
-        >
+        <Button mode="contained" onPress={handleAdd} style={styles.flexBtn}>
           Add Timer
         </Button>
       </View>

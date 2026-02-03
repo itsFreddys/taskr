@@ -38,10 +38,10 @@ export interface Task extends Models.Document {
   isAllDay: boolean;
   startTime?: string;
   endTime?: string;
+  defaultTimer?: number | null;
 
   // time limits & progress
   hasTimeLimit: boolean;
-  duration?: number; // in minutes
   isCompleted: boolean; // only for 'one-time' tasks
   streakCount: number;
 }
