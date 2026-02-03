@@ -244,7 +244,7 @@ export const CreateTask = ({
             />
 
             <PaperTextInput
-              label="Notes"
+              label="Notes (optional)"
               mode="outlined"
               multiline
               value={description}

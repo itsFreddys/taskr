@@ -90,17 +90,19 @@ export const TaskCard = ({
   }, [isTimerRunning, timeLeft]);
 
   const handleToggle = () => {
-    const nextStatus = isCompleted ? "active" : "completed";
+    // If the task is already completed, do nothing on a simple tap.
+    if (isCompleted) return;
 
-    if (nextStatus === "completed") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else {
-      Haptics.selectionAsync(); // Subtle "undo" haptic
-    }
+    // Otherwise, proceed to complete it
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onToggleComplete(task.$id, "completed");
+    setLeftVisible(false);
+  };
 
-    // We send the ID and the status we WANT it to be
-    onToggleComplete(task.$id, nextStatus);
-    setLeftVisible(false); // Ensure menu closes
+  const handleReactivate = () => {
+    Haptics.selectionAsync();
+    onToggleComplete(task.$id, "active");
+    setLeftVisible(false);
   };
 
   const handleTimerPress = () => {
@@ -146,10 +148,9 @@ export const TaskCard = ({
               onDismiss={() => setLeftVisible(false)}
               position={menuPos}
               items={[
-                // 🟢 DYNAMIC ITEM: Logic to Reactivate or Complete
                 {
                   label: isCompleted ? "Reactivate Task" : "Mark Complete",
-                  onPress: handleToggle,
+                  onPress: isCompleted ? handleReactivate : handleToggle,
                 },
                 // Postpone is hidden if completed to keep menu clean
                 ...(!isCompleted
@@ -169,9 +170,10 @@ export const TaskCard = ({
               anchor={
                 <TouchableOpacity
                   style={styles.leftZone}
-                  onPress={handleToggle} // Quick tap toggle
+                  onPress={isCompleted ? undefined : handleToggle}
                   onLongPress={onLongPressLeft} // Long press for Undo/Delete
                   delayLongPress={300}
+                  activeOpacity={isCompleted ? 1 : 0.7}
                 >
                   {isCompleted && (
                     <View style={styles.actionZone}>
