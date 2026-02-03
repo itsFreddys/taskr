@@ -29,16 +29,22 @@ const calculateNewStreak = (
 // 🟢 Helper to format seconds into MM:SS
 const formatTimeDisplay = (time: any) => {
   if (!time) return "0:00";
+
+  // If it's already a formatted string from Appwrite, return it
   if (typeof time === "string" && time.includes(":")) return time;
 
-  const totalSeconds = Number(time);
-  if (isNaN(totalSeconds)) return time;
+  const totalSeconds = Math.floor(Number(time));
+  if (isNaN(totalSeconds)) return "0:00";
 
-  // If the number is small (e.g., < 120), you might be treating it as minutes.
-  // But if you are storing raw seconds in Appwrite, use this:
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  const pad = (n: number) => n.toString().padStart(2, "0");
+
+  // Format: H:MM:SS if hours exist, otherwise M:SS
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${m}:${pad(s)}`;
 };
 
 export const TaskCard = ({
@@ -61,12 +67,16 @@ export const TaskCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(() => {
     const rawValue = task.timers?.[0] || 0;
+
+    // If it's a string like "1:30:10", parse it to seconds
     if (typeof rawValue === "string" && rawValue.includes(":")) {
-      const [m, s] = rawValue.split(":").map(Number);
-      return m * 60 + (s || 0);
+      const parts = rawValue.split(":").map(Number);
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      return parts[0] * 60 + parts[1];
     }
-    // If your logic treats timers[0] as minutes (e.g. 25), keep the * 60
-    return Number(rawValue) * 60;
+
+    // 🟢 FIXED: rawValue is already seconds from Appwrite. No more "* 60"
+    return Number(rawValue);
   });
 
   useEffect(() => {
@@ -215,7 +225,6 @@ export const TaskCard = ({
                                 { color: theme.colors.primary },
                               ]}
                             >
-                              {/* Use the formatter here */}
                               {formatTimeDisplay(task.timers[0])}
                             </Text>
                           </View>
