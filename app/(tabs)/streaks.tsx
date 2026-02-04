@@ -1,4 +1,5 @@
 import { CreateTask } from "@/components/CreateTask";
+import { DailyCalendar } from "@/components/DailyCalendar";
 import { TaskActiveButtons } from "@/components/TaskActiveButtons";
 import { TaskCard } from "@/components/TaskCard";
 import { DATABASE_ID, databases, TASKS_TABLE_ID } from "@/lib/appwrite";
@@ -412,84 +413,6 @@ export default function Streakscreen() {
     });
   };
 
-  const renderItem = ({ item }: any) => {
-    if (item.type === "month") {
-      return (
-        <View style={styles.monthDivider}>
-          <View style={styles.verticalLine} />
-          <Text style={styles.monthLabel}>{item.label}</Text>
-        </View>
-      );
-    }
-
-    // Inside renderItem, these are local variables
-    const isSelected = isSameDay(item.date, selectedDate);
-    const isItemToday = isSameDay(item.date, today);
-    const isPast = isBefore(item.date, today);
-
-    return (
-      <TouchableOpacity
-        onPress={() => setSelectedDate(item.date)}
-        activeOpacity={0.8}
-      >
-        <Surface
-          style={[
-            styles.dateCard,
-            isSelected && styles.selectedCard,
-            isPast && !isSelected && { opacity: 0.4 },
-          ]}
-          elevation={isSelected ? 4 : 0}
-        >
-          <Text style={[styles.dayText, isSelected && styles.whiteText]}>
-            {format(item.date, "EEE")}
-          </Text>
-          <Text style={[styles.dateText, isSelected && styles.whiteText]}>
-            {format(item.date, "d")}
-          </Text>
-
-          {/* Today's Permanent Marker */}
-          {isItemToday && !isSelected && <View style={styles.todayIndicator} />}
-        </Surface>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderTasksList = () => {
-    // need to retrieve the tasks from api for the current date
-
-    if (tasks && tasks.length > 0) {
-      return (
-        <View>
-          <Text>Some tasks</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.emptyCard}>
-        <Text style={{ color: "#aaa" }}>No habits tracked for this date.</Text>
-      </View>
-    );
-  };
-
-  const renderSchedule = () => {
-    return (
-      <View style={styles.taskList}>
-        <Text style={styles.listTitle}>
-          {/* ✅ FIXED: Use isSameDay(selectedDate, today) instead of the missing variable */}
-          {isSameDay(selectedDate, today)
-            ? "Today Schedule"
-            : format(selectedDate, "eeee, MMM do") + " Schedule"}
-        </Text>
-        <View style={styles.emptyCard}>
-          <Text style={{ color: "#aaa" }}>
-            No tasks in Schedule for this date.
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <View style={styles.container}>
       <Animated.View
@@ -498,47 +421,20 @@ export default function Streakscreen() {
           { transform: [{ translateY: headerTranslateY }] },
         ]}
       >
-        <View style={styles.calendarHeader}>
-          <View>
-            <Text style={styles.currentMonthDisplay}>
-              {isSameDay(selectedDate, today)
-                ? "Today"
-                : format(selectedDate, "eeee, MMM do")}
-            </Text>
-          </View>
-          <View style={styles.calendarHeaderButtons}>
-            <IconButton
-              icon="calendar-today"
-              onPress={jumpToToday}
-              containerColor={theme.colors.surfaceVariant}
-            />
-            <IconButton
-              icon={searchToggle ? "magnify-minus" : "magnify"}
-              onPress={() => {
-                setHeaderHeight(searchToggle ? VAR_HEADER : VAR_HEADER + 60);
-                setSearchToggle((prev) => !prev);
-              }}
-              containerColor={theme.colors.surfaceVariant}
-            />
-          </View>
-        </View>
-
-        <View style={styles.calendarStrip}>
-          <FlatList
-            ref={flatListRef}
-            data={calendarData}
-            renderItem={renderItem}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id}
-            initialScrollIndex={todayIndex}
-            getItemLayout={(_, index) => ({
-              length: ITEM_WIDTH + 8, // Added margin (4+4) to calculation
-              offset: (ITEM_WIDTH + 8) * index,
-              index,
-            })}
-          />
-        </View>
+        {/* 🟢 Refactored Daily Calendar Component */}
+        <DailyCalendar
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          today={today}
+          jumpToToday={jumpToToday}
+          onSearchToggle={() => {
+            setHeaderHeight(searchToggle ? VAR_HEADER : VAR_HEADER + 60);
+            setSearchToggle(!searchToggle);
+          }}
+          searchActive={searchToggle}
+          flatListRef={flatListRef}
+          itemWidth={ITEM_WIDTH}
+        />
 
         {searchToggle && (
           <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
@@ -549,7 +445,7 @@ export default function Streakscreen() {
               style={styles.globalSearch}
               inputStyle={styles.globalInput}
               mode="bar"
-              autoFocus={true}
+              autoFocus
             />
           </View>
         )}
