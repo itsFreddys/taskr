@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Task } from "@/types/database.type";
 import { calculateNewStreak } from "@/lib/utils/streakUtils";
 import { Models, Query } from "react-native-appwrite";
+import { useStreaksLogic } from "@/hooks/useStreaksLogic";
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = width / 6;
@@ -27,143 +28,31 @@ export default function Streakscreen() {
   const { user } = useAuth();
   const theme = useTheme();
 
-  // --- Animation & Refs ---
+  const {
+    selectedDate,
+    setSelectedDate,
+    activeButton,
+    setActiveButton,
+    searchToggle,
+    setSearchToggle,
+    searchQuery,
+    setSearchQuery,
+    createVisible,
+    setCreateVisible,
+    today,
+    filteredTasks,
+    handleDelete,
+    handleToggleTask,
+    handleMoveToTomorrow,
+    fetchTasks,
+  } = useStreaksLogic(user);
+
+  const [headerHeight, setHeaderHeight] = useState(VAR_HEADER);
   const scrollY = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
-
-  // --- UI State ---
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [activeButton, setActiveButton] = useState<string>("all");
-  const [headerHeight, setHeaderHeight] = useState(VAR_HEADER);
-  const [searchToggle, setSearchToggle] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [createVisible, setCreateVisible] = useState(false);
-
-  const today = startOfDay(new Date());
   const styles = createStyles(theme, headerHeight);
 
-  // --- Lifecycle ---
-  useEffect(() => {
-    fetchTasks();
-  }, [user]);
-
-  // --- Database Handlers ---
-  const fetchTasks = async () => {
-    if (!user) return;
-    try {
-      const response = await databases.listDocuments<Models.Document & Task>(
-        DATABASE_ID,
-        TASKS_TABLE_ID,
-        [Query.equal("creatorId", user.$id)]
-      );
-      setTasks(response.documents);
-    } catch (err) {
-      console.error("Fetch error:", err);
-    }
-  };
-
-  const handleDelete = async (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.$id !== taskId));
-    try {
-      await databases.deleteDocument(DATABASE_ID, TASKS_TABLE_ID, taskId);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err) {
-      fetchTasks();
-    }
-  };
-
-  const handleToggleTask = async (taskId: string, targetStatus: string) => {
-    const isCompleting = targetStatus === "completed";
-    const targetTask = tasks.find((t) => t.$id === taskId);
-    if (!targetTask) return;
-
-    let newStreak = targetTask.streakCount || 0;
-    let completionDate: string | null = isCompleting
-      ? new Date().toISOString()
-      : null;
-
-    if (isCompleting) {
-      newStreak = calculateNewStreak(
-        targetTask.lastCompletedDate ?? null,
-        targetTask.streakCount
-      );
-    } else {
-      const lastDate = targetTask.lastCompletedDate
-        ? parseISO(targetTask.lastCompletedDate)
-        : null;
-      if (lastDate && isToday(lastDate) && newStreak > 0) newStreak -= 1;
-    }
-
-    try {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.$id === taskId
-            ? ({
-                ...t,
-                status: targetStatus,
-                lastCompletedDate: completionDate,
-                streakCount: newStreak,
-              } as Task)
-            : t
-        )
-      );
-      await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
-        status: targetStatus,
-        lastCompletedDate: completionDate,
-        streakCount: newStreak,
-      });
-    } catch (err) {
-      fetchTasks();
-    }
-  };
-
-  const handleMoveToTomorrow = async (taskId: string) => {
-    const tomorrow = addDays(startOfDay(new Date()), 1).toISOString();
-    setTasks((prev) => prev.filter((t) => t.$id !== taskId));
-    try {
-      await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
-        startDate: tomorrow,
-        status: "active",
-        lastCompletedDate: null,
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err) {
-      fetchTasks();
-    }
-  };
-
-  // --- Task Filtering Logic ---
-  const filteredTasks = useMemo(() => {
-    const dayIndex = selectedDate.getDay().toString();
-    const results = tasks.filter((task) => {
-      if (task.status === "inactive") return false;
-      return task.type === "one-time"
-        ? isSameDay(new Date(task.startDate), selectedDate)
-        : task.daysOfWeek?.includes(dayIndex);
-    });
-
-    const processed = results.map((t) => ({
-      ...t,
-      status:
-        t.lastCompletedDate &&
-        isSameDay(new Date(t.lastCompletedDate), selectedDate)
-          ? "completed"
-          : "active",
-    }));
-
-    const active = processed.filter((t) => t.status === "active");
-    const completed = processed.filter((t) => t.status === "completed");
-
-    if (activeButton === "all") {
-      return completed.length && active.length
-        ? [...active, { type: "separator", id: "completed-sep" }, ...completed]
-        : [...active, ...completed];
-    }
-    return activeButton === "active" ? active : completed;
-  }, [tasks, selectedDate, activeButton]);
-
-  // --- Animation Logic ---
+  // Animation logic stays here as it's UI-bound
   const onScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     { useNativeDriver: true }
@@ -173,6 +62,11 @@ export default function Streakscreen() {
     outputRange: [0, -headerHeight],
     extrapolate: "clamp",
   });
+
+  // --- Lifecycle ---
+  useEffect(() => {
+    fetchTasks();
+  }, [user]);
 
   return (
     <View style={styles.container}>
@@ -188,7 +82,12 @@ export default function Streakscreen() {
           today={today}
           jumpToToday={() => {
             setSelectedDate(today);
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            const todayIndex = 15;
+            flatListRef.current?.scrollToIndex({
+              index: todayIndex,
+              viewPosition: 0.5,
+              animated: true,
+            });
           }}
           onSearchToggle={() => {
             setHeaderHeight(searchToggle ? VAR_HEADER : VAR_HEADER + 60);
