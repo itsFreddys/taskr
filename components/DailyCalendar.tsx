@@ -13,6 +13,7 @@ interface DailyCalendarProps {
   searchActive: boolean;
   flatListRef: any;
   itemWidth: number;
+  todayPulseAnim: any;
 }
 
 export const DailyCalendar = ({
@@ -24,6 +25,7 @@ export const DailyCalendar = ({
   searchActive,
   flatListRef,
   itemWidth,
+  todayPulseAnim,
 }: DailyCalendarProps) => {
   const theme = useTheme();
   const styles = createStyles(theme);
@@ -45,6 +47,7 @@ export const DailyCalendar = ({
           setSelectedDate={setSelectedDate}
           flatListRef={flatListRef}
           itemWidth={itemWidth}
+          todayPulseAnim={todayPulseAnim}
         />
       </View>
     </View>

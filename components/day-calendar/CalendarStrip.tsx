@@ -1,5 +1,11 @@
 import React, { useMemo } from "react";
-import { FlatList, TouchableOpacity, View, StyleSheet } from "react-native";
+import {
+  FlatList,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  Animated,
+} from "react-native";
 import { Surface, Text, useTheme } from "react-native-paper";
 import { format, isSameDay, isBefore, addDays, startOfDay } from "date-fns";
 
@@ -8,6 +14,7 @@ export const CalendarStrip = ({
   setSelectedDate,
   flatListRef,
   itemWidth,
+  todayPulseAnim,
 }: any) => {
   const theme = useTheme();
   const styles = createStyles(theme, itemWidth);
@@ -54,22 +61,30 @@ export const CalendarStrip = ({
         onPress={() => setSelectedDate(item.date)}
         activeOpacity={0.8}
       >
-        <Surface
-          style={[
-            styles.dateCard,
-            isSelected && styles.selectedCard,
-            isPast && !isSelected && { opacity: 0.4 },
-          ]}
-          elevation={isSelected ? 4 : 0}
+        <Animated.View
+          style={
+            isItemToday ? { transform: [{ scale: todayPulseAnim }] } : null
+          }
         >
-          <Text style={[styles.dayText, isSelected && styles.whiteText]}>
-            {format(item.date, "EEE")}
-          </Text>
-          <Text style={[styles.dateText, isSelected && styles.whiteText]}>
-            {format(item.date, "d")}
-          </Text>
-          {isItemToday && !isSelected && <View style={styles.todayIndicator} />}
-        </Surface>
+          <Surface
+            style={[
+              styles.dateCard,
+              isSelected && styles.selectedCard,
+              isPast && !isSelected && { opacity: 0.4 },
+            ]}
+            elevation={isSelected ? 4 : 0}
+          >
+            <Text style={[styles.dayText, isSelected && styles.whiteText]}>
+              {format(item.date, "EEE")}
+            </Text>
+            <Text style={[styles.dateText, isSelected && styles.whiteText]}>
+              {format(item.date, "d")}
+            </Text>
+            {isItemToday && !isSelected && (
+              <View style={styles.todayIndicator} />
+            )}
+          </Surface>
+        </Animated.View>
       </TouchableOpacity>
     );
   };

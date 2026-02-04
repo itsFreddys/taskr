@@ -45,11 +45,13 @@ export default function Streakscreen() {
     handleToggleTask,
     handleMoveToTomorrow,
     fetchTasks,
+    flatListRef,
+    jumpToToday,
+    todayPulseAnim,
   } = useStreaksLogic(user);
 
   const [headerHeight, setHeaderHeight] = useState(VAR_HEADER);
   const scrollY = useRef(new Animated.Value(0)).current;
-  const flatListRef = useRef<FlatList>(null);
   const styles = createStyles(theme, headerHeight);
 
   // Animation logic stays here as it's UI-bound
@@ -80,22 +82,15 @@ export default function Streakscreen() {
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
           today={today}
-          jumpToToday={() => {
-            setSelectedDate(today);
-            const todayIndex = 15;
-            flatListRef.current?.scrollToIndex({
-              index: todayIndex,
-              viewPosition: 0.5,
-              animated: true,
-            });
-          }}
+          jumpToToday={jumpToToday}
+          flatListRef={flatListRef}
           onSearchToggle={() => {
             setHeaderHeight(searchToggle ? VAR_HEADER : VAR_HEADER + 60);
             setSearchToggle(!searchToggle);
           }}
           searchActive={searchToggle}
-          flatListRef={flatListRef}
           itemWidth={ITEM_WIDTH}
+          todayPulseAnim={todayPulseAnim}
         />
 
         {searchToggle && (

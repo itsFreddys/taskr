@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Animated } from "react-native";
+import { FlatList } from "react-native";
 import { isSameDay, isToday, parseISO, addDays, startOfDay } from "date-fns";
 import * as Haptics from "expo-haptics";
 import { Models, Query } from "react-native-appwrite";
@@ -15,6 +17,43 @@ export const useStreaksLogic = (user: any) => {
   const [createVisible, setCreateVisible] = useState(false);
 
   const today = startOfDay(new Date());
+  const flatListRef = useRef<FlatList>(null);
+
+  // Inside Streakscreen or hook
+  const todayPulseAnim = useRef(new Animated.Value(1)).current;
+
+  const triggerPulse = () => {
+    // 🟢 Resets and runs a quick "pop" animation
+    todayPulseAnim.setValue(1);
+    Animated.sequence([
+      Animated.timing(todayPulseAnim, {
+        toValue: 0.9,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(todayPulseAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  // 🟢 Update your jumpToToday
+  const jumpToToday = useCallback(() => {
+    setSelectedDate(today);
+    // Adjust index to match your calendarData generation (starts at -14)
+    const todayIndex = 15;
+
+    flatListRef.current?.scrollToIndex({
+      index: todayIndex,
+      viewPosition: 0.5,
+      animated: true,
+    });
+
+    // 🟢 3. Trigger pulse after scroll starts
+    setTimeout(triggerPulse, 300);
+  }, [today, triggerPulse]);
 
   const fetchTasks = useCallback(async () => {
     if (!user) return;
@@ -149,5 +188,8 @@ export const useStreaksLogic = (user: any) => {
     handleToggleTask,
     handleMoveToTomorrow,
     fetchTasks,
+    jumpToToday,
+    flatListRef,
+    todayPulseAnim,
   };
 };
