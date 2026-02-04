@@ -56,12 +56,12 @@ const createStyles = (theme: any) =>
     container: {
       width: "100%",
       backgroundColor: theme.colors.background,
-      borderBottomColor: theme.colors.surface,
-      borderBottomWidth: 2,
+      // borderBottomColor: theme.colors.surface,
+      // borderBottomWidth: 2,
     },
     stripWrapper: {
       paddingBottom: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: "rgba(0,0,0,0.05)",
+      borderBottomWidth: 2,
+      borderBottomColor: theme.colors.surface,
     },
   });
