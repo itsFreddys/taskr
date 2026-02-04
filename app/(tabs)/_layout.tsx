@@ -1,21 +1,27 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Octicons from "@expo/vector-icons/Octicons";
 import { Tabs } from "expo-router";
+import { useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
+  const theme = useTheme();
+
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: "#f5f5f5" },
-        headerShadowVisible: false,
+        headerShown: false,
+
         tabBarStyle: {
-          backgroundColor: "#f5f5f5",
+          // backgroundColor: "#f5f5f5",
+          backgroundColor: theme.colors.background,
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
         },
-        tabBarActiveTintColor: "#6200ee",
-        tabBarInactiveTintColor: "#666666",
+        // tabBarActiveTintColor: "#6200ee",
+        tabBarActiveTintColor: theme.colors.primary,
+        // tabBarInactiveTintColor: "#666666",
+        tabBarInactiveTintColor: theme.colors.outline,
       }}
     >
       <Tabs.Screen
@@ -52,11 +58,7 @@ export default function TabsLayout() {
           title: "Add Habit",
           tabBarIcon: ({ color, size }) => (
             // <FontAwesome name="home" size={24} color={color} />
-            <MaterialCommunityIcons
-              name="plus-circle"
-              size={size}
-              color={color}
-            />
+            <MaterialCommunityIcons name="apps" size={size} color={color} />
           ),
         }}
       />

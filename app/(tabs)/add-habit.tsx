@@ -1,31 +1,42 @@
 import { DATABASE_ID, databases, HABITS_TABLE_ID } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { ID } from "react-native-appwrite";
+import { CustomEmojiPicker } from "@/components/CustomEmojiPicker";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  Modal,
+  SafeAreaView,
+} from "react-native";
 import {
   Button,
   SegmentedButtons,
   Text,
-  TextInput,
+  TextInput as PaperTextInput,
   useTheme,
 } from "react-native-paper";
+import { ID } from "react-native-appwrite";
+import EmojiSelector, { Categories } from "react-native-emoji-selector";
 
 const FREQUENCIES = ["daily", "weekly", "monthly"];
 type Frequency = (typeof FREQUENCIES)[number];
 
 export default function AddHabitScreen() {
-  const [title, setTitle] = useState<string>("");
-  const [description, setDescritipion] = useState<string>("");
+  const [title, setTitle] = useState("");
+  const [description, setDescritipion] = useState("");
   const [frequency, setFrequency] = useState<Frequency>("daily");
   const { user } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>("");
   const theme = useTheme();
 
+  const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
+  const [emojiPic, setEmojiPic] = useState("✅");
+
   const handleSubmit = async () => {
-    // check if user exists first
     if (!user) return;
     setError(null);
 
@@ -42,28 +53,48 @@ export default function AddHabitScreen() {
           streak_count: 0,
           last_completed: new Date().toISOString(),
           created_at: new Date().toISOString(),
+          emote_pic: emojiPic,
         }
       );
       router.back();
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-        return;
-      }
-      setError("There was an error creating the habit.");
+      setError(error instanceof Error ? error.message : "Error creating habit");
     }
   };
 
   return (
     <View style={styles.container}>
+      <CustomEmojiPicker
+        visible={emojiPickerVisible}
+        onClose={() => setEmojiPickerVisible(false)}
+        onSelect={(emoji) => {
+          setEmojiPic(emoji);
+          setEmojiPickerVisible(false);
+        }}
+      />
+
       <View style={styles.prompts}>
-        <TextInput
+        <View style={styles.imageHeader}>
+          <TouchableOpacity
+            onPress={() => setEmojiPickerVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.emojiIcon}>{emojiPic}</Text>
+            <Ionicons
+              name="add-circle-outline"
+              size={28}
+              color="#6c6c80"
+              style={styles.iconButton}
+            />
+          </TouchableOpacity>
+        </View>
+        <PaperTextInput
           style={styles.habit_input}
           label="Title"
           mode="outlined"
           onChangeText={setTitle}
         />
-        <TextInput
+        <PaperTextInput
           style={styles.habit_description_input}
           label="Description"
           mode="outlined"
@@ -113,7 +144,7 @@ const styles = StyleSheet.create({
   habit_description_input: {
     marginBottom: 14,
     height: 150,
-    textAlignVertical: "Top",
+    textAlignVertical: "top",
   },
   seg_buttons: {
     marginBottom: 14,
@@ -128,5 +159,28 @@ const styles = StyleSheet.create({
     backgroundColor: "grey",
     borderRadius: 8,
     textAlign: "center",
+  },
+  iconButton: {
+    padding: 0,
+    position: "absolute",
+    bottom: 30,
+    right: -20,
+  },
+  emojiIcon: {
+    fontSize: 120,
+    textAlign: "center",
+    alignSelf: "center",
+    marginVertical: 24,
+  },
+  imageHeader: {
+    flexDirection: "row",
+    alignContent: "center",
+    justifyContent: "center",
+  },
+  imageSelector: {
+    flexDirection: "row",
+    alignContent: "center",
+    justifyContent: "center",
+    marginTop: 30,
   },
 });

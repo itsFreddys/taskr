@@ -1,9 +1,15 @@
+import { darkTheme, lightTheme } from "@/constants/Themes";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { GlobalSettingsMenu } from "@/components/GlobalSettingsMenu";
+import { CustomHeader } from "@/components/CustomHeader";
+
 import { Stack, useRouter, useSegments } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { PaperProvider } from "react-native-paper"; // Import this if you haven't
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ThemeProvider } from "../lib/theme-context";
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -30,26 +36,29 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <PaperProvider>
+      <ThemeProvider>
+        <AuthProvider>
           <SafeAreaProvider>
             <RouteGuard>
-              <Stack>
+              {/* <GlobalSettingsMenu /> */}
+              <Stack
+                screenOptions={{
+                  header: (props) => <CustomHeader {...props} />,
+                }}
+              >
                 <Stack.Screen name="auth" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
                 <Stack.Screen
-                  name="habit-details/[id]"
+                  name="task-details/[id]"
                   options={{
-                    headerShown: true,
-                    headerBackButtonDisplayMode: "generic",
-                    title: "Habit Details",
+                    title: "Task Details",
                   }}
                 />
               </Stack>
             </RouteGuard>
           </SafeAreaProvider>
-        </PaperProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
