@@ -7,6 +7,8 @@ export const TaskInfoZone = ({ task, isCompleted, formatTimeDisplay }: any) => {
   const theme = useTheme();
   const styles = createStyles(theme);
 
+  const displayTimer = task.defaultTimer || task.timers?.[0];
+
   return (
     <View style={styles.container}>
       {isCompleted && (
@@ -40,7 +42,7 @@ export const TaskInfoZone = ({ task, isCompleted, formatTimeDisplay }: any) => {
                 <Text style={styles.metaText}>{task.startTime}</Text>
               </View>
             )}
-            {task.timers?.[0] && (
+            {displayTimer && (
               <View style={styles.metaItem}>
                 <MaterialCommunityIcons
                   name="timer-outline"
@@ -50,7 +52,7 @@ export const TaskInfoZone = ({ task, isCompleted, formatTimeDisplay }: any) => {
                 <Text
                   style={[styles.metaText, { color: theme.colors.primary }]}
                 >
-                  {formatTimeDisplay(task.timers[0])}
+                  {formatTimeDisplay(displayTimer)}
                 </Text>
               </View>
             )}

@@ -13,6 +13,7 @@ export const TaskActionZone = ({
   formatTimeDisplay,
 }: any) => {
   const theme = useTheme();
+  const styles = createStyles(theme);
 
   if (isCompleted) {
     return (
@@ -42,24 +43,25 @@ export const TaskActionZone = ({
   );
 };
 
-const styles = StyleSheet.create({
-  streakZone: { alignItems: "center", justifyContent: "center", width: 60 },
-  streakNumber: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#ff9800",
-    marginTop: -2,
-  },
-  rightZone: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  liveTimerText: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#6200ee",
-    marginTop: 2,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    streakZone: { alignItems: "center", justifyContent: "center", width: 60 },
+    streakNumber: {
+      fontSize: 14,
+      fontWeight: "bold",
+      color: "#ff9800",
+      marginTop: -2,
+    },
+    rightZone: {
+      width: "100%",
+      height: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    liveTimerText: {
+      fontSize: 12,
+      fontWeight: "bold",
+      color: theme.colors.primary,
+      marginTop: 2,
+    },
+  });

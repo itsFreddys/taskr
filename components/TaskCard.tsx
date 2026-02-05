@@ -36,7 +36,7 @@ export const TaskCard = ({
   const isCompleted = task.status === "completed";
 
   // 🟢 Logic extracted to custom hook
-  const { timeLeft, isTimerRunning, toggleTimer, startTimer } =
+  const { timeLeft, isTimerRunning, toggleTimer, startTimer, selectTimer } =
     useTaskTimer(task);
 
   // Menu/UI State
@@ -144,8 +144,18 @@ export const TaskCard = ({
               onDismiss={() => setRightVisible(false)}
               position={menuPos}
               items={[
-                { label: "Focus (25m)", onPress: () => startTimer(25) },
-                { label: "Deep (50m)", onPress: () => startTimer(50) },
+                ...(task.timers && task.timers.length > 0
+                  ? task.timers.map((time: any) => ({
+                      label: `Start: ${formatTimeDisplay(time)}`,
+                      onPress: () => {
+                        selectTimer(time);
+                        setRightVisible(false);
+                      },
+                    }))
+                  : [
+                      { label: "Focus (25m)", onPress: () => startTimer(25) },
+                      { label: "Deep (50m)", onPress: () => startTimer(50) },
+                    ]),
                 { label: "Edit Task", onPress: () => onPress?.() },
               ]}
               anchor={

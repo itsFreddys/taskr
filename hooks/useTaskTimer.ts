@@ -13,9 +13,10 @@ const parseTimeToSeconds = (rawValue: any) => {
 
 export const useTaskTimer = (task: any) => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(() =>
-    parseTimeToSeconds(task.timers?.[0])
-  );
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const defaultVal = task.defaultTimer || task.timers?.[0] || 0;
+    return parseTimeToSeconds(defaultVal);
+  });
 
   useEffect(() => {
     // 🟢 Use ReturnType to automatically match your environment's type
@@ -49,11 +50,18 @@ export const useTaskTimer = (task: any) => {
     setIsTimerRunning(true);
   }, []);
 
+  const selectTimer = useCallback((timeValue: any) => {
+    const seconds = parseTimeToSeconds(timeValue);
+    setTimeLeft(seconds);
+    setIsTimerRunning(true);
+  }, []);
+
   return {
     timeLeft,
     isTimerRunning,
     toggleTimer,
     startTimer,
     setTimeLeft, // Exposed in case of manual resets
+    selectTimer,
   };
 };
