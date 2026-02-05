@@ -68,6 +68,11 @@ export default function Streakscreen() {
   // --- Lifecycle ---
   useEffect(() => {
     fetchTasks();
+    const timer = setTimeout(() => {
+      jumpToToday();
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [user]);
 
   return (

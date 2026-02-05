@@ -5,6 +5,7 @@ import {
   View,
   StyleSheet,
   Animated,
+  Dimensions,
 } from "react-native";
 import { Surface, Text, useTheme } from "react-native-paper";
 import { format, isSameDay, isBefore, addDays, startOfDay } from "date-fns";
@@ -97,12 +98,19 @@ export const CalendarStrip = ({
       horizontal
       showsHorizontalScrollIndicator={false}
       keyExtractor={(item) => item.id}
-      initialScrollIndex={todayIndex > 0 ? todayIndex : 0}
+      initialScrollIndex={todayIndex}
+      initialNumToRender={20}
       getItemLayout={(_, index) => ({
         length: itemWidth + 8,
-        offset: (itemWidth + 8) * index,
+        offset:
+          (itemWidth + 8) * index -
+          Dimensions.get("window").width / 2 +
+          (itemWidth + 8) / 2,
         index,
       })}
+      snapToAlignment="center" // 🟢 Snaps to the middle
+      snapToInterval={itemWidth + 8} // 🟢 Distance between snaps (card + margins)
+      decelerationRate="fast"
     />
   );
 };

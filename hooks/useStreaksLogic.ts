@@ -47,7 +47,7 @@ export const useStreaksLogic = (user: any) => {
 
     flatListRef.current?.scrollToIndex({
       index: todayIndex,
-      viewPosition: 0.5,
+      viewPosition: 0,
       animated: true,
     });
 
