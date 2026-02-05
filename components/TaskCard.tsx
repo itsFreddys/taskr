@@ -1,25 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Surface, useTheme } from "react-native-paper";
 import * as Haptics from "expo-haptics";
+
+// --- Logic & Hooks ---
+import { useTaskTimer } from "@/hooks/useTaskTimer";
 import CustomMenu from "./CustomMenu";
 
 // --- Sub-Components ---
 import { TaskInfoZone } from "./task-card/TaskInfoZone";
 import { TaskActionZone } from "./task-card/TaskActionZone";
 
-// --- Utils ---
+// 🟢 Utility (Consider moving to @/lib/utils/timeUtils.ts later)
 const formatTimeDisplay = (time: any) => {
   if (!time) return "0:00";
   if (typeof time === "string" && time.includes(":")) return time;
   const totalSeconds = Math.floor(Number(time));
-  if (isNaN(totalSeconds)) return "0:00";
-
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
   const pad = (n: number) => n.toString().padStart(2, "0");
-
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 };
 
@@ -35,35 +35,16 @@ export const TaskCard = ({
   const styles = createStyles(theme);
   const isCompleted = task.status === "completed";
 
-  // Menu States
+  // 🟢 Logic extracted to custom hook
+  const { timeLeft, isTimerRunning, toggleTimer, startTimer } =
+    useTaskTimer(task);
+
+  // Menu/UI State
   const [leftVisible, setLeftVisible] = useState(false);
   const [rightVisible, setRightVisible] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
 
-  // ⏱️ Timer Logic
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(() => {
-    const rawValue = task.timers?.[0] || 0;
-    if (typeof rawValue === "string" && rawValue.includes(":")) {
-      const parts = rawValue.split(":").map(Number);
-      return parts.length === 3
-        ? parts[0] * 3600 + parts[1] * 60 + parts[2]
-        : parts[0] * 60 + parts[1];
-    }
-    return Number(rawValue);
-  });
-
-  useEffect(() => {
-    let interval: any;
-    if (isTimerRunning && timeLeft > 0) {
-      interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    } else if (timeLeft === 0) {
-      setIsTimerRunning(false);
-    }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft]);
-
-  // --- Handlers ---
+  // --- Interaction Handlers ---
   const handleToggle = () => {
     if (isCompleted) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -78,18 +59,10 @@ export const TaskCard = ({
   };
 
   const handleTimerPress = () => {
-    if (timeLeft > 0) {
-      setIsTimerRunning(!isTimerRunning);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else {
+    // 🟢 toggleTimer returns false if timeLeft is 0
+    if (!toggleTimer()) {
       setRightVisible(true);
     }
-  };
-
-  const startTimer = (mins: number) => {
-    setTimeLeft(mins * 60);
-    setIsTimerRunning(true);
-    setRightVisible(false);
   };
 
   const onLongPressLeft = (event: any) => {
@@ -111,9 +84,10 @@ export const TaskCard = ({
       style={[styles.card, isCompleted && styles.completedCard, style]}
       elevation={isCompleted ? 0 : 1}
     >
+      {/* 🟢 innerContainer prevents shadow clipping while allowing overflow:hidden for children */}
       <View style={styles.innerContainer}>
         <View style={styles.cardLayout}>
-          {/* 🟢 LEFT ZONE: Information & Main Actions */}
+          {/* LEFT ZONE: Info & Context Menu */}
           <View style={styles.leftContainer}>
             <CustomMenu
               visible={leftVisible}
@@ -147,7 +121,6 @@ export const TaskCard = ({
                   onPress={isCompleted ? undefined : handleToggle}
                   onLongPress={onLongPressLeft}
                   delayLongPress={300}
-                  activeOpacity={isCompleted ? 1 : 0.7}
                 >
                   <TaskInfoZone
                     task={task}
@@ -159,7 +132,7 @@ export const TaskCard = ({
             />
           </View>
 
-          {/* 🟢 RIGHT ZONE: Timer or Streaks */}
+          {/* RIGHT ZONE: Timer Actions or Streak Fire */}
           <View
             style={[
               styles.rightContainer,
