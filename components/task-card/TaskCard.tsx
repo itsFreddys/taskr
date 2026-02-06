@@ -5,12 +5,12 @@ import * as Haptics from "expo-haptics";
 
 // --- Logic & Hooks ---
 import { useTaskTimer } from "@/hooks/useTaskTimer";
-import CustomMenu from "./CustomMenu";
-import { CustomTimerPicker } from "./CustomTimerPicker";
+import CustomMenu from "@/components/CustomMenu";
+import { CustomTimerPicker } from "@/components/CustomTimerPicker";
 
 // --- Sub-Components ---
-import { TaskInfoZone } from "./task-card/TaskInfoZone";
-import { TaskActionZone } from "./task-card/TaskActionZone";
+import { TaskInfoZone } from "@/components/task-card/TaskInfoZone";
+import { TaskActionZone } from "@/components/task-card/TaskActionZone";
 
 // 🟢 Utility (Consider moving to @/lib/utils/timeUtils.ts later)
 const formatTimeDisplay = (time: any) => {

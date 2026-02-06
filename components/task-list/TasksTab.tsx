@@ -1,8 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { Animated, Dimensions, StyleSheet, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Text, useTheme } from "react-native-paper";
-import { TaskCard } from "@/components/TaskCard";
+import {
+  Text,
+  useTheme,
+  Searchbar,
+  IconButton,
+  Button,
+} from "react-native-paper";
+import { TaskCard } from "@/components/task-card/TaskCard";
 import { TaskActiveButtons } from "@/components/TaskActiveButtons";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -19,11 +25,27 @@ export const TasksTab = ({
 }: any) => {
   const theme = useTheme();
   const styles = createStyles(theme, headerHeight);
+
+  const filteredTasks = tasks.filter((task: any) => {
+    if (task.type === "separator" || !task.title) return true;
+
+    return task.title.toLowerCase().includes((searchQuery || "").toLowerCase());
+  });
+
   const TOTAL_SPACER_HEIGHT = headerHeight + 48;
+  const [searchToggle, setSearchToggle] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearchToggle = () => {
+    if (searchToggle) {
+      setSearchQuery("");
+    }
+    setSearchToggle(!searchToggle);
+  };
 
   return (
     <Animated.FlatList
-      data={tasks}
+      data={filteredTasks}
       onScroll={onScroll}
       keyExtractor={(item) => item.$id || item.id}
       scrollEventThrottle={16}
@@ -32,23 +54,46 @@ export const TasksTab = ({
         <View>
           <View style={{ height: TOTAL_SPACER_HEIGHT }} />
           <View style={styles.filterContainer}>
-            <TaskActiveButtons
-              selected={activeButton}
-              onSelect={setActiveButton}
-            />
+            <View style={styles.headerRow}>
+              <View style={styles.buttonWrapper}>
+                <TaskActiveButtons
+                  selected={activeButton}
+                  onSelect={setActiveButton}
+                />
+              </View>
+              <IconButton
+                icon={searchToggle ? "magnify-minus" : "magnify"}
+                onPress={handleSearchToggle}
+                mode="contained-tonal"
+                size={20}
+                style={styles.searchIcon}
+              />
+            </View>
+
+            {searchToggle && (
+              <View style={styles.searchContainer}>
+                <Searchbar
+                  placeholder="Search tasks..."
+                  onChangeText={setSearchQuery}
+                  value={searchQuery}
+                  style={styles.globalSearch}
+                  inputStyle={styles.globalSearchInput}
+                  iconColor={theme.colors.primary}
+                  autoFocus
+                  clearIcon="close-circle-outline"
+                />
+              </View>
+            )}
           </View>
         </View>
       }
       ListEmptyComponent={
-        <View
-          style={[
-            styles.emptyCard,
-            { height: SCREEN_HEIGHT - TOTAL_SPACER_HEIGHT - 200 },
-          ]}
-        >
+        <View style={styles.emptyCard}>
           <MaterialCommunityIcons
             name={
-              activeButton === "completed"
+              searchQuery
+                ? "magnify-close"
+                : activeButton === "completed"
                 ? "check-all"
                 : "clipboard-text-outline"
             }
@@ -56,10 +101,23 @@ export const TasksTab = ({
             color={theme.colors.outlineVariant}
           />
           <Text style={styles.emptyText}>
-            {activeButton === "completed"
+            {searchQuery
+              ? `No results for "${searchQuery}"`
+              : activeButton === "completed"
               ? "No completed tasks yet. Keep going!"
               : "No active tasks for today."}
           </Text>
+
+          {/* 🟢 Add a 'Reset Search' button only when searching */}
+          {searchQuery && (
+            <Button
+              mode="text"
+              onPress={() => setSearchQuery("")}
+              style={{ marginTop: 8 }}
+            >
+              Clear Search
+            </Button>
+          )}
         </View>
       }
       renderItem={({ item }) => {
@@ -94,6 +152,32 @@ const createStyles = (theme: any, headerHeight: number) =>
       paddingHorizontal: 20,
       paddingTop: 16,
       paddingBottom: 8,
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    buttonWrapper: {
+      flex: 1,
+    },
+    searchContainer: { paddingHorizontal: 0, paddingTop: 10 },
+    globalSearch: {
+      backgroundColor: theme.colors.surfaceVariant,
+      elevation: 0,
+      height: 45,
+      borderRadius: 10,
+      justifyContent: "center",
+    },
+    globalSearchInput: {
+      minHeight: 0,
+      paddingVertical: 0,
+      fontSize: 16,
+      // alignSelf: "center",
+      textAlignVertical: "center",
+    },
+    searchIcon: {
+      margin: 0,
+      marginLeft: 8,
     },
     emptyCard: {
       flex: 1,
