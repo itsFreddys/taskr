@@ -63,5 +63,6 @@ export const useTaskTimer = (task: any) => {
     startTimer,
     setTimeLeft, // Exposed in case of manual resets
     selectTimer,
+    setIsTimerRunning,
   };
 };

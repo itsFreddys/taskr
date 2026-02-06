@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { Surface, useTheme } from "react-native-paper";
+import { Surface, useTheme, Portal, Modal } from "react-native-paper";
 import * as Haptics from "expo-haptics";
 
 // --- Logic & Hooks ---
 import { useTaskTimer } from "@/hooks/useTaskTimer";
 import CustomMenu from "./CustomMenu";
+import { CustomTimerPicker } from "./CustomTimerPicker";
 
 // --- Sub-Components ---
 import { TaskInfoZone } from "./task-card/TaskInfoZone";
@@ -36,13 +37,22 @@ export const TaskCard = ({
   const isCompleted = task.status === "completed";
 
   // 🟢 Logic extracted to custom hook
-  const { timeLeft, isTimerRunning, toggleTimer, startTimer, selectTimer } =
-    useTaskTimer(task);
+  const {
+    timeLeft,
+    isTimerRunning,
+    toggleTimer,
+    startTimer,
+    selectTimer,
+    setTimeLeft,
+    setIsTimerRunning,
+  } = useTaskTimer(task);
 
   // Menu/UI State
   const [leftVisible, setLeftVisible] = useState(false);
   const [rightVisible, setRightVisible] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   // --- Interaction Handlers ---
   const handleToggle = () => {
@@ -156,7 +166,13 @@ export const TaskCard = ({
                       { label: "Focus (25m)", onPress: () => startTimer(25) },
                       { label: "Deep (50m)", onPress: () => startTimer(50) },
                     ]),
-                { label: "Edit Task", onPress: () => onPress?.() },
+                {
+                  label: "Custom Timer",
+                  onPress: () => {
+                    setRightVisible(false);
+                    setPickerVisible(true);
+                  },
+                },
               ]}
               anchor={
                 <TaskActionZone
@@ -173,6 +189,23 @@ export const TaskCard = ({
           </View>
         </View>
       </View>
+      <Portal>
+        <Modal
+          visible={pickerVisible}
+          onDismiss={() => setPickerVisible(false)}
+          contentContainerStyle={styles.modalContent}
+        >
+          <CustomTimerPicker
+            onAdd={(totalSeconds) => {
+              // 🟢 Update the hook directly with seconds
+              setTimeLeft(totalSeconds);
+              setIsTimerRunning(true);
+              setPickerVisible(false);
+            }}
+            onCancel={() => setPickerVisible(false)}
+          />
+        </Modal>
+      </Portal>
     </Surface>
   );
 };
@@ -210,5 +243,10 @@ const createStyles = (theme: any) =>
       height: 80,
       flexDirection: "row",
       alignItems: "center",
+    },
+    modalContent: {
+      backgroundColor: "transparent", // Let the Surface inside handle color
+      padding: 20,
+      margin: 20,
     },
   });
