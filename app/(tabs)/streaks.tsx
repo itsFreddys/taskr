@@ -6,8 +6,8 @@ import { addDays, isSameDay, isToday, parseISO, startOfDay } from "date-fns";
 import * as Haptics from "expo-haptics";
 
 // --- Abstracted Components ---
-import { CreateTask } from "@/components/CreateTask";
-import { DailyCalendar } from "@/components/DailyCalendar";
+import { CreateTask } from "@/components/task-form/CreateTask";
+import { DailyCalendar } from "@/components/day-calendar/DailyCalendar";
 import { TasksTab } from "@/components/task-list/TasksTab";
 import { ScheduleTab } from "@/components/task-list/ScheduleTab";
 
