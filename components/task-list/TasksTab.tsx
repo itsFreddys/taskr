@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Animated, Dimensions, StyleSheet, View } from "react-native";
+import { Animated, Dimensions, StyleSheet, View, Keyboard } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   Text,
@@ -58,6 +58,7 @@ export const TasksTab = ({
 
   const handleSearchToggle = () => {
     if (searchToggle) {
+      Keyboard.dismiss();
       setSearchQuery("");
     }
     setSearchToggle(!searchToggle);
@@ -109,6 +110,7 @@ export const TasksTab = ({
                 iconColor={theme.colors.primary}
                 autoFocus={searchToggle} // Only autofocus when opening
                 clearIcon="close-circle-outline"
+                onSubmitEditing={Keyboard.dismiss}
               />
             </Animated.View>
           </View>
