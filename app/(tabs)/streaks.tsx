@@ -12,11 +12,7 @@ import { TasksTab } from "@/components/task-list/TasksTab";
 import { ScheduleTab } from "@/components/task-list/ScheduleTab";
 
 // --- Logic, Types & Services ---
-import { DATABASE_ID, databases, TASKS_TABLE_ID } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
-import { Task } from "@/types/database.type";
-import { calculateNewStreak } from "@/lib/utils/streakUtils";
-import { Models, Query } from "react-native-appwrite";
 import { useStreaksLogic } from "@/hooks/useStreaksLogic";
 
 const { width } = Dimensions.get("window");
@@ -29,6 +25,8 @@ export default function Streakscreen() {
   const theme = useTheme();
 
   const {
+    dailyTasks,
+    allTasks,
     selectedDate,
     setSelectedDate,
     activeButton,
@@ -40,10 +38,10 @@ export default function Streakscreen() {
     createVisible,
     setCreateVisible,
     today,
-    filteredTasks,
     handleDelete,
     handleToggleTask,
     handleMoveToTomorrow,
+    handleBringToToday,
     fetchTasks,
     flatListRef,
     jumpToToday,
@@ -131,8 +129,10 @@ export default function Streakscreen() {
               <TasksTab
                 onScroll={onScroll}
                 headerHeight={headerHeight}
-                tasks={filteredTasks}
+                tasks={dailyTasks}
+                allTasks={dailyTasks}
                 activeButton={activeButton}
+                handleBringToToday={handleBringToToday}
                 setActiveButton={setActiveButton}
                 onToggleTask={handleToggleTask}
                 onMoveToTomorrow={handleMoveToTomorrow}
