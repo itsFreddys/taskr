@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Animated, Dimensions, StyleSheet, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
@@ -36,6 +36,26 @@ export const TasksTab = ({
   const [searchToggle, setSearchToggle] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [searchBarAnimation] = useState(new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.timing(searchBarAnimation, {
+      toValue: searchToggle ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [searchToggle]);
+
+  const searchHeight = searchBarAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 60],
+  });
+
+  const searchOpacity = searchBarAnimation.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 0, 1],
+  });
+
   const handleSearchToggle = () => {
     if (searchToggle) {
       setSearchQuery("");
@@ -65,25 +85,32 @@ export const TasksTab = ({
                 icon={searchToggle ? "magnify-minus" : "magnify"}
                 onPress={handleSearchToggle}
                 mode="contained-tonal"
-                size={20}
+                size={18}
                 style={styles.searchIcon}
               />
             </View>
 
-            {searchToggle && (
-              <View style={styles.searchContainer}>
-                <Searchbar
-                  placeholder="Search tasks..."
-                  onChangeText={setSearchQuery}
-                  value={searchQuery}
-                  style={styles.globalSearch}
-                  inputStyle={styles.globalSearchInput}
-                  iconColor={theme.colors.primary}
-                  autoFocus
-                  clearIcon="close-circle-outline"
-                />
-              </View>
-            )}
+            <Animated.View
+              style={[
+                styles.searchContainer,
+                {
+                  height: searchHeight,
+                  opacity: searchOpacity,
+                  overflow: "hidden",
+                },
+              ]}
+            >
+              <Searchbar
+                placeholder="Search tasks..."
+                onChangeText={setSearchQuery}
+                value={searchQuery}
+                style={styles.globalSearch}
+                inputStyle={styles.globalSearchInput}
+                iconColor={theme.colors.primary}
+                autoFocus={searchToggle} // Only autofocus when opening
+                clearIcon="close-circle-outline"
+              />
+            </Animated.View>
           </View>
         </View>
       }
@@ -160,13 +187,14 @@ const createStyles = (theme: any, headerHeight: number) =>
     buttonWrapper: {
       flex: 1,
     },
-    searchContainer: { paddingHorizontal: 0, paddingTop: 10 },
+    searchContainer: { paddingHorizontal: 0 },
     globalSearch: {
       backgroundColor: theme.colors.surfaceVariant,
       elevation: 0,
       height: 45,
       borderRadius: 10,
       justifyContent: "center",
+      marginTop: 10,
     },
     globalSearchInput: {
       minHeight: 0,
