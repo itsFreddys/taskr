@@ -49,9 +49,12 @@ export const TasksTab = ({
   const [history, setHistory] = useState<string[]>([]);
 
   const TOTAL_SPACER_HEIGHT = headerHeight + 48;
-  const HISTORY_ITEM_HEIGHT = 62;
-  const GLOBAL_ITEM_HEIGHT = 72;
-  const GLOBAL_HEADER_HEIGHT = 40;
+  // const HISTORY_ITEM_HEIGHT = 62;
+  // const GLOBAL_ITEM_HEIGHT = 72;
+  // const GLOBAL_HEADER_HEIGHT = 40;
+  const HISTORY_ITEM_HEIGHT = 50;
+  const GLOBAL_ITEM_HEIGHT = 60; // 🟢 Matches your styles.searchResultsItems height
+  const GLOBAL_HEADER_HEIGHT = 45; // 🟢 Accounts for header padding
 
   // --- Search Logic ---
   const dailyMatches = (tasks || []).filter((task: any) => {
@@ -63,11 +66,11 @@ export const TasksTab = ({
 
   // 2. Update Global Matches
   const globalMatches = (allTasks || []).filter((task: any) => {
-    if (!(searchQuery || "").trim()) return false;
+    const query = (searchQuery || "").trim().toLowerCase();
+    if (!query) return false;
 
-    const safeQuery = searchQuery.toLowerCase();
-    const matchesSearch = task.title?.toLowerCase().includes(safeQuery);
-    const isAlreadyInDaily = tasks.some((d: any) => d.$id === task.$id);
+    const matchesSearch = task.title?.toLowerCase().includes(query);
+    const isAlreadyInDaily = dailyMatches.some((d: any) => d.$id === task.$id);
 
     return matchesSearch && !isAlreadyInDaily;
   });
@@ -260,30 +263,31 @@ export const TasksTab = ({
                   >
                     <View style={styles.trayDivider} />
                     <View style={styles.trayHeader}>
-                      <Text style={styles.trayHeaderText}>
-                        Historical Results
-                      </Text>
+                      <Text style={styles.trayHeaderText}>Search Results:</Text>
                     </View>
                     <ScrollView keyboardShouldPersistTaps="always">
-                      {globalMatches.map((item: any) => (
-                        <List.Item
-                          key={item.$id}
-                          title={item.title}
-                          description={`Last active: ${new Date(
-                            item.$updatedAt
-                          ).toLocaleDateString()}`}
-                          left={(props) => (
-                            <List.Icon {...props} icon="calendar-clock" />
-                          )}
-                          right={(props) => (
-                            <IconButton {...props} icon="chevron-right" />
-                          )}
-                          onPress={() => {
-                            handleBringToToday(item.$id);
-                            setSearchQuery("");
-                            Keyboard.dismiss();
-                          }}
-                        />
+                      {globalMatches.map((item: any, index: number) => (
+                        <View key={item.$id}>
+                          {index > 0 && <View style={styles.itemSeparator} />}
+                          <List.Item
+                            style={styles.searchResultsItems}
+                            title={`${item.emotePic} ${item.title}`}
+                            description={`Last active: ${new Date(
+                              item.$updatedAt
+                            ).toLocaleDateString()}`}
+                            left={(props) => (
+                              <List.Icon {...props} icon="calendar-clock" />
+                            )}
+                            right={(props) => (
+                              <IconButton {...props} icon="chevron-right" />
+                            )}
+                            onPress={() => {
+                              handleBringToToday(item.$id);
+                              setSearchQuery("");
+                              Keyboard.dismiss();
+                            }}
+                          />
+                        </View>
                       ))}
                     </ScrollView>
                   </Animated.View>
@@ -351,11 +355,11 @@ const createStyles = (theme: any, headerHeight: number) =>
     buttonWrapper: { flex: 1 },
     animContainer: { overflow: "hidden", zIndex: 11 }, // Searchbar slide container
     searchContainer: {
-      backgroundColor: theme.colors.surfaceVariant,
+      backgroundColor: theme.colors.surface,
       borderRadius: 12,
     },
     growingContainer: {
-      backgroundColor: theme.colors.surfaceVariant,
+      backgroundColor: theme.colors.surface,
       borderRadius: 12, // 🟢 Slightly tighter radius for a slimmer bar
       marginTop: 12,
       overflow: "hidden",
@@ -388,12 +392,27 @@ const createStyles = (theme: any, headerHeight: number) =>
       borderTopWidth: 1,
       borderColor: "rgba(0,0,0,0.15)",
     },
-    trayHeader: { padding: 10, backgroundColor: theme.colors.surfaceVariant },
+    trayHeader: {
+      padding: 10,
+      backgroundColor: theme.colors.surface,
+    },
     trayHeaderText: {
-      fontSize: 10,
+      color: theme.colors.onSurface,
+      fontSize: 12,
       fontWeight: "bold",
       textTransform: "uppercase",
       opacity: 0.6,
+    },
+    searchResultsItems: {
+      height: 60,
+      justifyContent: "center",
+      paddingVertical: 0,
+    },
+    itemSeparator: {
+      height: 1,
+      backgroundColor: theme.colors.outlineVariant,
+      opacity: 0.4, // 🟢 Very faint line
+      marginHorizontal: 16,
     },
     globalSearch: {
       backgroundColor: theme.colors.surfaceVariant,

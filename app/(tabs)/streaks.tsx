@@ -130,7 +130,7 @@ export default function Streakscreen() {
                 onScroll={onScroll}
                 headerHeight={headerHeight}
                 tasks={dailyTasks}
-                allTasks={dailyTasks}
+                allTasks={allTasks}
                 activeButton={activeButton}
                 handleBringToToday={handleBringToToday}
                 setActiveButton={setActiveButton}
