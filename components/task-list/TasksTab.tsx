@@ -24,6 +24,7 @@ import { TaskActiveButtons } from "@/components/TaskActiveButtons";
 
 import { SearchItem } from "@/components/task-list/SearchItem";
 import { EmptyState } from "@/components/task-list/EmptyState";
+import { SearchTray } from "@/components/task-list/SearchTray";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -135,15 +136,15 @@ export const TasksTab = ({
     outputRange: [0, 44],
   });
 
-  const historyHeight = historyAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 220],
-  });
+  // const historyHeight = historyAnim.interpolate({
+  //   inputRange: [0, 1],
+  //   outputRange: [0, 220],
+  // });
 
-  const globalHeight = globalTrayAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 250],
-  });
+  // const globalHeight = globalTrayAnim.interpolate({
+  //   inputRange: [0, 1],
+  //   outputRange: [0, 250],
+  // });
 
   const totalHeight = Animated.add(
     searchHeight,
@@ -235,64 +236,21 @@ export const TasksTab = ({
                     }}
                   />
 
-                  {/* 1. History Tray */}
-                  <Animated.View
-                    style={{ height: historyHeight, opacity: historyAnim }}
-                  >
-                    <View style={styles.trayDivider} />
-                    <ScrollView keyboardShouldPersistTaps="handled">
-                      {history.map((term, index) => (
-                        <View key={`history-${index}`}>
-                          {index > 0 && <View style={styles.itemSeparator} />}
-                          <List.Item
-                            style={styles.searchResultsItems}
-                            title={term}
-                            titleStyle={{ fontSize: 14 }}
-                            left={(props) => (
-                              <List.Icon {...props} icon="history" />
-                            )}
-                            right={(props) => (
-                              <IconButton
-                                {...props}
-                                icon="close"
-                                size={16}
-                                onPress={() => removeFromHistory(term)}
-                              />
-                            )}
-                            onPress={() => setSearchQuery(term)}
-                          />
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </Animated.View>
-
-                  {/* 2. Global Results Tray */}
-                  <Animated.View
-                    style={{ height: globalHeight, opacity: globalTrayAnim }}
-                  >
-                    <View style={styles.trayDivider} />
-                    <View style={styles.trayHeader}>
-                      <Text style={styles.trayHeaderText}>Search Results:</Text>
-                    </View>
-                    <ScrollView keyboardShouldPersistTaps="always">
-                      {globalMatches.map((item: any, index: number) => (
-                        <View key={item.$id}>
-                          {index > 0 && <View style={styles.itemSeparator} />}
-                          <SearchItem
-                            item={item}
-                            onEdit={(task) =>
-                              console.log("Navigate to Task:", task.$id)
-                            }
-                            onQuickAdd={(id) => {
-                              handleBringToToday(id);
-                              setSearchQuery("");
-                              Keyboard.dismiss();
-                            }}
-                          />
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </Animated.View>
+                  {/* 🟢 The entire search logic is now just one clean tag */}
+                  <SearchTray
+                    history={history}
+                    historyAnim={historyAnim}
+                    onRemoveHistory={removeFromHistory}
+                    onSelectHistory={setSearchQuery}
+                    globalMatches={globalMatches}
+                    globalTrayAnim={globalTrayAnim}
+                    onEditTask={(task) => console.log("Edit:", task.$id)}
+                    onQuickAdd={(id) => {
+                      handleBringToToday(id);
+                      setSearchQuery("");
+                      Keyboard.dismiss();
+                    }}
+                  />
                 </Animated.View>
               </View>
             </View>
@@ -341,10 +299,6 @@ const createStyles = (theme: any, headerHeight: number) =>
     },
     buttonWrapper: { flex: 1 },
     animContainer: { overflow: "hidden", zIndex: 11 }, // Searchbar slide container
-    searchContainer: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-    },
     growingContainer: {
       backgroundColor: theme.colors.surface,
       borderRadius: 12, // 🟢 Slightly tighter radius for a slimmer bar
@@ -358,34 +312,6 @@ const createStyles = (theme: any, headerHeight: number) =>
       height: 44,
       minHeight: 44,
       justifyContent: "center",
-    },
-    trayDivider: {
-      height: 1,
-      backgroundColor: theme.colors.outlineVariant,
-      opacity: 0.2,
-      marginHorizontal: 12,
-    },
-    trayHeader: {
-      padding: 10,
-      backgroundColor: theme.colors.surface,
-    },
-    trayHeaderText: {
-      color: theme.colors.onSurface,
-      fontSize: 12,
-      fontWeight: "bold",
-      textTransform: "uppercase",
-      opacity: 0.6,
-    },
-    searchResultsItems: {
-      flexDirection: "row",
-      height: 60,
-      alignItems: "center",
-    },
-    itemSeparator: {
-      height: 1,
-      backgroundColor: theme.colors.outlineVariant,
-      opacity: 0.4, // 🟢 Very faint line
-      marginHorizontal: 16,
     },
     globalSearchInput: {
       fontSize: 15,
