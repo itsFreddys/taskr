@@ -1,30 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Animated,
   Dimensions,
   StyleSheet,
   View,
   Keyboard,
-  ScrollView,
-  Easing,
   TouchableWithoutFeedback,
-  Pressable,
 } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import {
-  Text,
-  useTheme,
-  Searchbar,
-  IconButton,
-  List,
-} from "react-native-paper";
-import { TaskCard } from "@/components/task-card/TaskCard";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { TaskActiveButtons } from "@/components/TaskActiveButtons";
+import { Text, useTheme, Searchbar, IconButton } from "react-native-paper";
 
-import { SearchItem } from "@/components/task-list/SearchItem";
+// Components
+import { TaskCard } from "@/components/task-card/TaskCard";
+import { TaskActiveButtons } from "@/components/TaskActiveButtons";
 import { EmptyState } from "@/components/task-list/EmptyState";
 import { SearchTray } from "@/components/task-list/SearchTray";
+
+// Hooks
+import { useSearchLogic } from "@/hooks/useSearchLogic";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -38,149 +30,43 @@ export const TasksTab = ({
   onToggleTask,
   onMoveToTomorrow,
   onDelete,
-  handleBringToToday, // 🟢 Passed from Streakscreen
+  handleBringToToday,
 }: any) => {
   const theme = useTheme();
   const styles = createStyles(theme, headerHeight);
 
-  const [searchToggle, setSearchToggle] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  // 🧠 Logic abstracted to Custom Hook
+  const search = useSearchLogic(allTasks, tasks);
 
-  // --- Animation States ---
-  const [searchBarAnimation] = useState(new Animated.Value(0));
-  const [historyAnim] = useState(new Animated.Value(0));
-  const [globalTrayAnim] = useState(new Animated.Value(0));
-  const [isFocused, setIsFocused] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
-
-  const TOTAL_SPACER_HEIGHT = headerHeight + 48;
-  const HISTORY_ITEM_HEIGHT = 60;
-  const GLOBAL_ITEM_HEIGHT = 60; // 🟢 Matches your styles.searchResultsItems height
-  const GLOBAL_HEADER_HEIGHT = 45; // 🟢 Accounts for header padding
-
-  // --- Search Logic ---
+  // --- Filtering Logic ---
   const dailyMatches = (tasks || []).filter((task: any) => {
     if (task.type === "separator" || !task.title) return true;
-
-    const safeQuery = (searchQuery || "").toLowerCase();
-    return task.title.toLowerCase().includes(safeQuery);
+    return task.title.toLowerCase().includes(search.searchQuery.toLowerCase());
   });
 
-  // 2. Update Global Matches
   const globalMatches = (allTasks || []).filter((task: any) => {
-    const query = (searchQuery || "").trim().toLowerCase();
+    const query = search.searchQuery.trim().toLowerCase();
     if (!query) return false;
-
-    const matchesSearch = task.title?.toLowerCase().includes(query);
     const isAlreadyInDaily = dailyMatches.some((d: any) => d.$id === task.$id);
-
-    return matchesSearch && !isAlreadyInDaily;
+    return task.title?.toLowerCase().includes(query) && !isAlreadyInDaily;
   });
 
-  // --- Persistent History Loading ---
-  useEffect(() => {
-    const loadHistory = async () => {
-      const saved = await AsyncStorage.getItem("search_history");
-      if (saved) setHistory(JSON.parse(saved));
-    };
-    loadHistory();
-  }, []);
-
-  // --- Animation Effects ---
-  useEffect(() => {
-    Animated.timing(searchBarAnimation, {
-      toValue: searchToggle ? 1 : 0,
-      duration: 300,
-      useNativeDriver: false,
-      easing: Easing.bezier(0.4, 0, 0.2, 1),
-    }).start();
-  }, [searchToggle]);
-
-  useEffect(() => {
-    const count = Math.min(history.length, 5);
-    const separatorCount = count > 0 ? count - 1 : 0;
-    const totalSeparatorHeight = separatorCount * 1; // 1 is your itemSeparator height
-
-    const targetHeight =
-      isFocused && !searchQuery
-        ? count * HISTORY_ITEM_HEIGHT + totalSeparatorHeight + 2
-        : 0;
-
-    Animated.timing(historyAnim, {
-      toValue: targetHeight,
-      duration: 250,
-      useNativeDriver: false,
-      easing: Easing.out(Easing.quad),
-    }).start();
-  }, [isFocused, searchQuery, history]);
-
-  useEffect(() => {
-    const count = Math.min(globalMatches.length, 5);
-    // Header (40) + (items * 72)
-    const targetHeight =
-      searchQuery.length > 0 && globalMatches.length > 0
-        ? count * GLOBAL_ITEM_HEIGHT + GLOBAL_HEADER_HEIGHT
-        : 0;
-
-    Animated.timing(globalTrayAnim, {
-      toValue: targetHeight,
-      duration: 250,
-      useNativeDriver: false,
-      easing: Easing.out(Easing.quad),
-    }).start();
-  }, [searchQuery, globalMatches.length]);
-
-  // --- Interpolations ---
-  const searchHeight = searchBarAnimation.interpolate({
+  // --- Layout Calculations ---
+  const searchHeight = search.searchBarAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 44],
   });
 
-  // const historyHeight = historyAnim.interpolate({
-  //   inputRange: [0, 1],
-  //   outputRange: [0, 220],
-  // });
-
-  // const globalHeight = globalTrayAnim.interpolate({
-  //   inputRange: [0, 1],
-  //   outputRange: [0, 250],
-  // });
-
   const totalHeight = Animated.add(
     searchHeight,
-    Animated.add(historyAnim, globalTrayAnim)
+    Animated.add(search.historyAnim, search.globalTrayAnim)
   );
-
-  // --- Handlers ---
-  const handleSearchToggle = () => {
-    if (searchToggle) {
-      Keyboard.dismiss();
-      setSearchQuery("");
-    }
-    setSearchToggle(!searchToggle);
-  };
-
-  const saveSearch = async (query: string) => {
-    if (!query.trim()) return;
-    const newHistory = [query, ...history.filter((h) => h !== query)].slice(
-      0,
-      5
-    );
-    setHistory(newHistory);
-    await AsyncStorage.setItem("search_history", JSON.stringify(newHistory));
-  };
-
-  const removeFromHistory = async (term: string) => {
-    const filtered = history.filter((h) => h !== term);
-    setHistory(filtered);
-    await AsyncStorage.setItem("search_history", JSON.stringify(filtered));
-  };
 
   return (
     <TouchableWithoutFeedback
       onPress={() => {
         Keyboard.dismiss();
-        setIsFocused(false);
+        search.setIsFocused(false);
       }}
       accessible={false}
     >
@@ -191,12 +77,11 @@ export const TasksTab = ({
           keyExtractor={(item) => item.$id || item.id}
           scrollEventThrottle={16}
           contentContainerStyle={styles.contentContainer}
-          // --- HEADER SECTION ---
           ListHeaderComponent={
             <View style={{ zIndex: 10 }}>
-              <View style={{ height: TOTAL_SPACER_HEIGHT }} />
+              <View style={{ height: headerHeight + 48 }} />
               <View style={styles.filterContainer}>
-                {/* Filter Buttons & Search Toggle */}
+                {/* 1. Header Row (Filter + Search Toggle) */}
                 <View style={styles.headerRow}>
                   <View style={styles.buttonWrapper}>
                     <TaskActiveButtons
@@ -205,15 +90,15 @@ export const TasksTab = ({
                     />
                   </View>
                   <IconButton
-                    icon={searchToggle ? "magnify-minus" : "magnify"}
-                    onPress={handleSearchToggle}
+                    icon={search.searchToggle ? "magnify-minus" : "magnify"}
+                    onPress={search.handleSearchToggle}
                     mode="contained-tonal"
                     size={18}
                     style={styles.searchIcon}
                   />
                 </View>
 
-                {/* Animated Search Tray Container */}
+                {/* 2. Animated Search Section */}
                 <Animated.View
                   style={[
                     styles.growingContainer,
@@ -222,32 +107,31 @@ export const TasksTab = ({
                 >
                   <Searchbar
                     placeholder="Search tasks..."
-                    onChangeText={setSearchQuery}
-                    value={searchQuery}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
+                    onChangeText={search.setSearchQuery}
+                    value={search.searchQuery}
+                    onFocus={() => search.setIsFocused(true)}
+                    onBlur={() => search.setIsFocused(false)}
                     style={styles.seamlessSearch}
                     inputStyle={styles.globalSearchInput}
-                    autoFocus={searchToggle}
+                    autoFocus={search.searchToggle}
                     clearIcon="close-circle-outline"
                     onSubmitEditing={() => {
-                      saveSearch(searchQuery);
+                      search.saveSearch(search.searchQuery);
                       Keyboard.dismiss();
                     }}
                   />
 
-                  {/* 🟢 The entire search logic is now just one clean tag */}
                   <SearchTray
-                    history={history}
-                    historyAnim={historyAnim}
-                    onRemoveHistory={removeFromHistory}
-                    onSelectHistory={setSearchQuery}
+                    history={search.history}
+                    historyAnim={search.historyAnim}
+                    onRemoveHistory={search.removeFromHistory}
+                    onSelectHistory={search.setSearchQuery}
                     globalMatches={globalMatches}
-                    globalTrayAnim={globalTrayAnim}
-                    onEditTask={(task) => console.log("Edit:", task.$id)}
+                    globalTrayAnim={search.globalTrayAnim}
+                    onEditTask={(task) => console.log("Navigate:", task.$id)}
                     onQuickAdd={(id) => {
                       handleBringToToday(id);
-                      setSearchQuery("");
+                      search.setSearchQuery("");
                       Keyboard.dismiss();
                     }}
                   />
@@ -255,11 +139,12 @@ export const TasksTab = ({
               </View>
             </View>
           }
-          // --- EMPTY STATE ---
           ListEmptyComponent={
-            <EmptyState searchQuery={searchQuery} activeButton={activeButton} />
+            <EmptyState
+              searchQuery={search.searchQuery}
+              activeButton={activeButton}
+            />
           }
-          // --- LIST ITEMS ---
           renderItem={({ item }) =>
             item.type === "separator" ? (
               <View style={styles.separatorContainer}>
@@ -298,16 +183,15 @@ const createStyles = (theme: any, headerHeight: number) =>
       marginBottom: -10,
     },
     buttonWrapper: { flex: 1 },
-    animContainer: { overflow: "hidden", zIndex: 11 }, // Searchbar slide container
     growingContainer: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 12, // 🟢 Slightly tighter radius for a slimmer bar
+      borderRadius: 12,
       marginTop: 12,
       overflow: "hidden",
       elevation: 2,
     },
     seamlessSearch: {
-      backgroundColor: "transparent", // 🟢 No separate background
+      backgroundColor: "transparent",
       elevation: 0,
       height: 44,
       minHeight: 44,
@@ -315,11 +199,11 @@ const createStyles = (theme: any, headerHeight: number) =>
     },
     globalSearchInput: {
       fontSize: 15,
-      minHeight: 0, // 🟢 Removes default height constraint
-      paddingVertical: 0, // 🟢 Removes padding that pushes text down
+      minHeight: 0,
+      paddingVertical: 0,
       marginVertical: 0,
-      textAlignVertical: "center", // 🟢 Forces Android centering
-      includeFontPadding: false, // 🟢 Removes extra font-specific spacing
+      textAlignVertical: "center",
+      includeFontPadding: false,
       alignSelf: "center",
     },
     searchIcon: { margin: 0, marginLeft: 8, marginTop: -7 },
