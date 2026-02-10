@@ -52,10 +52,12 @@ export const useStreaksLogic = (user: any) => {
   // Handle resurrection of old tasks
   const handleBringToToday = async (taskId: string) => {
     try {
+      const todayISO = new Date().toISOString();
+
       await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
-        startDate: new Date().toISOString(), // Bringing it to today
+        adHocDate: todayISO, // Bringing it to today
         status: "active",
-        $updatedAt: new Date().toISOString(),
+        lastCompletedDate: null,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await fetchTasks(); // Refresh both sets
@@ -65,13 +67,16 @@ export const useStreaksLogic = (user: any) => {
   };
 
   const handleToggleTask = async (taskId: string, targetStatus: string) => {
-    const isCompleting = targetStatus === "completed";
+    if (!taskId) return;
+
     const targetTask = tasks.find((t) => t.$id === taskId);
     if (!targetTask) return;
 
-    let newStreak = targetTask.streakCount || 0;
-    const completionDate = isCompleting ? new Date().toISOString() : null;
+    const isCompleting = targetStatus === "completed";
+    const nowISO = new Date().toISOString();
 
+    // 1. Calculate new streak logic
+    let newStreak = targetTask.streakCount || 0;
     if (isCompleting) {
       newStreak = calculateNewStreak(
         targetTask.lastCompletedDate ?? null,
@@ -84,22 +89,32 @@ export const useStreaksLogic = (user: any) => {
       if (lastDate && isToday(lastDate) && newStreak > 0) newStreak -= 1;
     }
 
-    try {
-      // Optimistic Update
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.$id === taskId
-            ? ({ ...t, status: targetStatus, streakCount: newStreak } as Task)
-            : t
-        )
-      );
+    // 2. OPTIMISTIC UPDATE (UI moves immediately)
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.$id === taskId
+          ? ({
+              ...t,
+              status: targetStatus,
+              streakCount: newStreak,
+              lastCompletedDate: isCompleting ? nowISO : null,
+            } as Task)
+          : t
+      )
+    );
 
+    try {
+      // 3. DATABASE UPDATE
       await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
         status: targetStatus,
-        lastCompletedDate: completionDate,
+        lastCompletedDate: isCompleting ? nowISO : null,
         streakCount: newStreak,
+        // Ensure we don't overwrite or lose the ad-hoc date if it exists
+        adHocDate: targetTask.adHocDate || null,
       });
     } catch (err) {
+      console.error("Database update failed:", err);
+      // ROLLBACK on error to keep UI in sync with DB
       fetchTasks();
     }
   };
@@ -164,11 +179,20 @@ export const useStreaksLogic = (user: any) => {
 
     const processed = tasks
       .filter((t) => t.status !== "inactive")
-      .filter((t) =>
-        t.type === "one-time"
-          ? isSameDay(new Date(t.startDate), selectedDate)
-          : t.daysOfWeek?.includes(dayIndex)
-      )
+      .filter((t) => {
+        // 1. Check if it was manually "Added to Today" (The Exception)
+        const isAdHocMatch =
+          t.adHocDate && isSameDay(new Date(t.adHocDate), selectedDate);
+
+        // 2. Check if it matches its standard schedule (The Rule)
+        const isScheduledMatch =
+          t.type === "one-time"
+            ? isSameDay(new Date(t.startDate), selectedDate)
+            : t.daysOfWeek?.includes(dayIndex);
+
+        // Return true if either the Rule or the Exception is met
+        return isAdHocMatch || isScheduledMatch;
+      })
       .map((t) => ({
         ...t,
         status:

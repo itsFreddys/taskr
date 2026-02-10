@@ -8,6 +8,7 @@ import {
   ScrollView,
   Easing,
   TouchableWithoutFeedback,
+  Pressable,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
@@ -49,10 +50,7 @@ export const TasksTab = ({
   const [history, setHistory] = useState<string[]>([]);
 
   const TOTAL_SPACER_HEIGHT = headerHeight + 48;
-  // const HISTORY_ITEM_HEIGHT = 62;
-  // const GLOBAL_ITEM_HEIGHT = 72;
-  // const GLOBAL_HEADER_HEIGHT = 40;
-  const HISTORY_ITEM_HEIGHT = 50;
+  const HISTORY_ITEM_HEIGHT = 60;
   const GLOBAL_ITEM_HEIGHT = 60; // 🟢 Matches your styles.searchResultsItems height
   const GLOBAL_HEADER_HEIGHT = 45; // 🟢 Accounts for header padding
 
@@ -96,8 +94,13 @@ export const TasksTab = ({
 
   useEffect(() => {
     const count = Math.min(history.length, 5);
+    const separatorCount = count > 0 ? count - 1 : 0;
+    const totalSeparatorHeight = separatorCount * 1; // 1 is your itemSeparator height
+
     const targetHeight =
-      isFocused && !searchQuery ? count * HISTORY_ITEM_HEIGHT : 0;
+      isFocused && !searchQuery
+        ? count * HISTORY_ITEM_HEIGHT + totalSeparatorHeight + 2
+        : 0;
 
     Animated.timing(historyAnim, {
       toValue: targetHeight,
@@ -237,22 +240,28 @@ export const TasksTab = ({
                     <View style={styles.trayDivider} />
                     <ScrollView keyboardShouldPersistTaps="handled">
                       {history.map((item, index) => (
-                        <List.Item
-                          key={index}
-                          title={item}
-                          left={(props) => (
-                            <List.Icon {...props} icon="history" />
-                          )}
-                          right={(props) => (
-                            <IconButton
-                              {...props}
-                              icon="close"
-                              size={16}
-                              onPress={() => removeFromHistory(item)}
-                            />
-                          )}
-                          onPress={() => setSearchQuery(item)}
-                        />
+                        <View key={index}>
+                          {/* 🟢 Line break between items (except the first) */}
+                          {index > 0 && <View style={styles.itemSeparator} />}
+
+                          <List.Item
+                            style={styles.searchResultsItems} // 🟢 Shared slim style
+                            title={item}
+                            titleStyle={{ fontSize: 14 }}
+                            left={(props) => (
+                              <List.Icon {...props} icon="history" />
+                            )}
+                            right={(props) => (
+                              <IconButton
+                                {...props}
+                                icon="close"
+                                size={16}
+                                onPress={() => removeFromHistory(item)}
+                              />
+                            )}
+                            onPress={() => setSearchQuery(item)}
+                          />
+                        </View>
                       ))}
                     </ScrollView>
                   </Animated.View>
@@ -269,24 +278,40 @@ export const TasksTab = ({
                       {globalMatches.map((item: any, index: number) => (
                         <View key={item.$id}>
                           {index > 0 && <View style={styles.itemSeparator} />}
-                          <List.Item
-                            style={styles.searchResultsItems}
-                            title={`${item.emotePic} ${item.title}`}
-                            description={`Last active: ${new Date(
-                              item.$updatedAt
-                            ).toLocaleDateString()}`}
-                            left={(props) => (
-                              <List.Icon {...props} icon="calendar-clock" />
-                            )}
-                            right={(props) => (
-                              <IconButton {...props} icon="chevron-right" />
-                            )}
-                            onPress={() => {
-                              handleBringToToday(item.$id);
-                              setSearchQuery("");
-                              Keyboard.dismiss();
-                            }}
-                          />
+                          <View style={styles.searchResultsItems}>
+                            <Pressable
+                              onPress={() => {
+                                console.log("redirect to task display");
+                              }}
+                              style={styles.editActionZone}
+                            >
+                              <View style={styles.infoWrapper}>
+                                <Text style={styles.emoteText}>
+                                  {item.emotePic}
+                                </Text>
+                                <View style={styles.textContainer}>
+                                  <Text style={styles.searchItemTitle}>
+                                    {item.title}
+                                  </Text>
+                                  <Text style={styles.searchItemDesc}>
+                                    Last active:{" "}
+                                    {new Date(
+                                      item.$updatedAt
+                                    ).toLocaleDateString()}
+                                  </Text>
+                                </View>
+                              </View>
+                            </Pressable>
+
+                            <View style={styles.quickAddZone}>
+                              <IconButton
+                                icon="plus-circle-outline"
+                                iconColor={theme.colors.primary}
+                                size={24}
+                                onPress={() => handleBringToToday(item.$id)}
+                              />
+                            </View>
+                          </View>
                         </View>
                       ))}
                     </ScrollView>
@@ -404,9 +429,49 @@ const createStyles = (theme: any, headerHeight: number) =>
       opacity: 0.6,
     },
     searchResultsItems: {
+      flexDirection: "row",
       height: 60,
+      alignItems: "center",
+    },
+    editActionZone: {
+      flex: 1, // Takes up remaining space
+      height: "100%",
       justifyContent: "center",
-      paddingVertical: 0,
+      paddingLeft: 16,
+    },
+    infoWrapper: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    textContainer: {
+      marginLeft: 12,
+      flex: 1,
+    },
+    quickAddZone: {
+      width: 60,
+      height: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+      borderLeftWidth: 1,
+      borderLeftColor: theme.colors.outlineVariant + "20", // Very faint separator
+    },
+    emoteText: {
+      fontSize: 22,
+      width: 30,
+      textAlign: "center",
+      textAlignVertical: "center",
+      includeFontPadding: false,
+    },
+    searchItemTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+      marginBottom: -2,
+    },
+    searchItemDesc: {
+      fontSize: 11,
+      color: theme.colors.onSurfaceVariant,
+      opacity: 0.7,
     },
     itemSeparator: {
       height: 1,

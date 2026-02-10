@@ -18,7 +18,7 @@ export interface Task extends Models.Document {
   creatorId: string;
   isShared: boolean;
   teamId?: string;
-  emote_pic: string;
+  emotePic: string;
   title: string;
   description: string;
   category?: string;
@@ -27,6 +27,7 @@ export interface Task extends Models.Document {
   // logic type
   type: "one-time" | "recurring";
   frequency: Frequency;
+  adHocDate?: string | null;
 
   // date & recurrence
   startDate: string;
