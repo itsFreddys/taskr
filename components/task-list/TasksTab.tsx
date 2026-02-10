@@ -22,6 +22,9 @@ import { TaskCard } from "@/components/task-card/TaskCard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TaskActiveButtons } from "@/components/TaskActiveButtons";
 
+import { SearchItem } from "@/components/task-list/SearchItem";
+import { EmptyState } from "@/components/task-list/EmptyState";
+
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export const TasksTab = ({
@@ -176,9 +179,9 @@ export const TasksTab = ({
     <TouchableWithoutFeedback
       onPress={() => {
         Keyboard.dismiss();
-        setIsFocused(false); // Manually ensure state updates
+        setIsFocused(false);
       }}
-      accessible={false} // Prevents screen readers from seeing the wrapper as a button
+      accessible={false}
     >
       <View style={{ flex: 1 }}>
         <Animated.FlatList
@@ -187,11 +190,12 @@ export const TasksTab = ({
           keyExtractor={(item) => item.$id || item.id}
           scrollEventThrottle={16}
           contentContainerStyle={styles.contentContainer}
+          // --- HEADER SECTION ---
           ListHeaderComponent={
             <View style={{ zIndex: 10 }}>
               <View style={{ height: TOTAL_SPACER_HEIGHT }} />
               <View style={styles.filterContainer}>
-                {/* Filter Buttons & Toggle */}
+                {/* Filter Buttons & Search Toggle */}
                 <View style={styles.headerRow}>
                   <View style={styles.buttonWrapper}>
                     <TaskActiveButtons
@@ -208,13 +212,11 @@ export const TasksTab = ({
                   />
                 </View>
 
+                {/* Animated Search Tray Container */}
                 <Animated.View
                   style={[
                     styles.growingContainer,
-                    {
-                      height: totalHeight,
-                      opacity: 0.8,
-                    },
+                    { height: totalHeight, opacity: 0.95 },
                   ]}
                 >
                   <Searchbar
@@ -223,7 +225,7 @@ export const TasksTab = ({
                     value={searchQuery}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
-                    style={styles.seamlessSearch} // Transparent background
+                    style={styles.seamlessSearch}
                     inputStyle={styles.globalSearchInput}
                     autoFocus={searchToggle}
                     clearIcon="close-circle-outline"
@@ -233,20 +235,18 @@ export const TasksTab = ({
                     }}
                   />
 
-                  {/* History Tray */}
+                  {/* 1. History Tray */}
                   <Animated.View
                     style={{ height: historyHeight, opacity: historyAnim }}
                   >
                     <View style={styles.trayDivider} />
                     <ScrollView keyboardShouldPersistTaps="handled">
-                      {history.map((item, index) => (
-                        <View key={index}>
-                          {/* 🟢 Line break between items (except the first) */}
+                      {history.map((term, index) => (
+                        <View key={`history-${index}`}>
                           {index > 0 && <View style={styles.itemSeparator} />}
-
                           <List.Item
-                            style={styles.searchResultsItems} // 🟢 Shared slim style
-                            title={item}
+                            style={styles.searchResultsItems}
+                            title={term}
                             titleStyle={{ fontSize: 14 }}
                             left={(props) => (
                               <List.Icon {...props} icon="history" />
@@ -256,17 +256,17 @@ export const TasksTab = ({
                                 {...props}
                                 icon="close"
                                 size={16}
-                                onPress={() => removeFromHistory(item)}
+                                onPress={() => removeFromHistory(term)}
                               />
                             )}
-                            onPress={() => setSearchQuery(item)}
+                            onPress={() => setSearchQuery(term)}
                           />
                         </View>
                       ))}
                     </ScrollView>
                   </Animated.View>
 
-                  {/* Global Results Tray */}
+                  {/* 2. Global Results Tray */}
                   <Animated.View
                     style={{ height: globalHeight, opacity: globalTrayAnim }}
                   >
@@ -278,40 +278,17 @@ export const TasksTab = ({
                       {globalMatches.map((item: any, index: number) => (
                         <View key={item.$id}>
                           {index > 0 && <View style={styles.itemSeparator} />}
-                          <View style={styles.searchResultsItems}>
-                            <Pressable
-                              onPress={() => {
-                                console.log("redirect to task display");
-                              }}
-                              style={styles.editActionZone}
-                            >
-                              <View style={styles.infoWrapper}>
-                                <Text style={styles.emoteText}>
-                                  {item.emotePic}
-                                </Text>
-                                <View style={styles.textContainer}>
-                                  <Text style={styles.searchItemTitle}>
-                                    {item.title}
-                                  </Text>
-                                  <Text style={styles.searchItemDesc}>
-                                    Last active:{" "}
-                                    {new Date(
-                                      item.$updatedAt
-                                    ).toLocaleDateString()}
-                                  </Text>
-                                </View>
-                              </View>
-                            </Pressable>
-
-                            <View style={styles.quickAddZone}>
-                              <IconButton
-                                icon="plus-circle-outline"
-                                iconColor={theme.colors.primary}
-                                size={24}
-                                onPress={() => handleBringToToday(item.$id)}
-                              />
-                            </View>
-                          </View>
+                          <SearchItem
+                            item={item}
+                            onEdit={(task) =>
+                              console.log("Navigate to Task:", task.$id)
+                            }
+                            onQuickAdd={(id) => {
+                              handleBringToToday(id);
+                              setSearchQuery("");
+                              Keyboard.dismiss();
+                            }}
+                          />
                         </View>
                       ))}
                     </ScrollView>
@@ -320,26 +297,11 @@ export const TasksTab = ({
               </View>
             </View>
           }
+          // --- EMPTY STATE ---
           ListEmptyComponent={
-            <View style={styles.emptyCard}>
-              <MaterialCommunityIcons
-                name={
-                  searchQuery
-                    ? "magnify-close"
-                    : activeButton === "completed"
-                    ? "check-all"
-                    : "clipboard-text-outline"
-                }
-                size={48}
-                color={theme.colors.outlineVariant}
-              />
-              <Text style={styles.emptyText}>
-                {searchQuery
-                  ? `No results for "${searchQuery}"`
-                  : "No tasks found."}
-              </Text>
-            </View>
+            <EmptyState searchQuery={searchQuery} activeButton={activeButton} />
           }
+          // --- LIST ITEMS ---
           renderItem={({ item }) =>
             item.type === "separator" ? (
               <View style={styles.separatorContainer}>
@@ -403,20 +365,6 @@ const createStyles = (theme: any, headerHeight: number) =>
       opacity: 0.2,
       marginHorizontal: 12,
     },
-    tray: {
-      backgroundColor: theme.colors.surfaceVariant,
-      borderBottomLeftRadius: 12,
-      borderBottomRightRadius: 12,
-      // marginTop: -5,
-      overflow: "hidden",
-      elevation: 6,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.2,
-      shadowRadius: 5,
-      borderTopWidth: 1,
-      borderColor: "rgba(0,0,0,0.15)",
-    },
     trayHeader: {
       padding: 10,
       backgroundColor: theme.colors.surface,
@@ -433,61 +381,12 @@ const createStyles = (theme: any, headerHeight: number) =>
       height: 60,
       alignItems: "center",
     },
-    editActionZone: {
-      flex: 1, // Takes up remaining space
-      height: "100%",
-      justifyContent: "center",
-      paddingLeft: 16,
-    },
-    infoWrapper: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    textContainer: {
-      marginLeft: 12,
-      flex: 1,
-    },
-    quickAddZone: {
-      width: 60,
-      height: "100%",
-      justifyContent: "center",
-      alignItems: "center",
-      borderLeftWidth: 1,
-      borderLeftColor: theme.colors.outlineVariant + "20", // Very faint separator
-    },
-    emoteText: {
-      fontSize: 22,
-      width: 30,
-      textAlign: "center",
-      textAlignVertical: "center",
-      includeFontPadding: false,
-    },
-    searchItemTitle: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: theme.colors.onSurface,
-      marginBottom: -2,
-    },
-    searchItemDesc: {
-      fontSize: 11,
-      color: theme.colors.onSurfaceVariant,
-      opacity: 0.7,
-    },
     itemSeparator: {
       height: 1,
       backgroundColor: theme.colors.outlineVariant,
       opacity: 0.4, // 🟢 Very faint line
       marginHorizontal: 16,
     },
-    globalSearch: {
-      backgroundColor: theme.colors.surfaceVariant,
-      elevation: 0,
-      height: 45,
-      borderRadius: 10,
-      marginTop: 10,
-      marginBottom: 0,
-    },
-    // globalSearchInput: { minHeight: 0, paddingVertical: 0, fontSize: 16 },
     globalSearchInput: {
       fontSize: 15,
       minHeight: 0, // 🟢 Removes default height constraint
@@ -498,19 +397,6 @@ const createStyles = (theme: any, headerHeight: number) =>
       alignSelf: "center",
     },
     searchIcon: { margin: 0, marginLeft: 8, marginTop: -7 },
-    emptyCard: {
-      flex: 1,
-      margin: 16,
-      borderStyle: "dashed",
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.outlineVariant,
-      borderRadius: 20,
-      justifyContent: "center",
-      alignItems: "center",
-      height: 200,
-    },
-    emptyText: { color: "#aaa", marginTop: 12 },
     separatorContainer: {
       flexDirection: "row",
       alignItems: "center",
