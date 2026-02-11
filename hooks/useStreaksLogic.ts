@@ -123,14 +123,14 @@ export const useStreaksLogic = (user: any) => {
     const tomorrow = addDays(startOfDay(new Date()), 1).toISOString();
     try {
       await databases.updateDocument(DATABASE_ID, TASKS_TABLE_ID, taskId, {
-        startDate: tomorrow,
+        adHocDate: tomorrow,
         status: "active",
         lastCompletedDate: null,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       fetchTasks();
     } catch (err) {
-      console.error(err);
+      console.error("Error moving to tomorrow, task:", err);
     }
   };
 
