@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Dimensions, FlatList, StyleSheet, View } from "react-native";
 import { FAB, Searchbar, useTheme } from "react-native-paper";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { addDays, isSameDay, isToday, parseISO, startOfDay } from "date-fns";
-import * as Haptics from "expo-haptics";
 
 // --- Abstracted Components ---
 import { CreateTask } from "@/components/task-form/CreateTask";

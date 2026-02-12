@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Animated, Keyboard, Easing } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -12,6 +12,26 @@ export const useSearchLogic = (allTasks: any[], dailyTasks: any[]) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+
+  const filteredDaily = useMemo(() => {
+    return (dailyTasks || []).filter((task: any) => {
+      if (task.type === "separator" || !task.title) return true;
+      return task.title.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  }, [dailyTasks, searchQuery]);
+
+  const filteredGlobal = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+
+    return (allTasks || []).filter((task: any) => {
+      const matchesSearch = task.title?.toLowerCase().includes(query);
+      const isAlreadyInDaily = filteredDaily.some(
+        (d: any) => d.$id === task.$id
+      );
+      return matchesSearch && !isAlreadyInDaily;
+    });
+  }, [allTasks, searchQuery, filteredDaily]);
 
   // --- Animation Values ---
   const [searchBarAnim] = useState(new Animated.Value(0));
@@ -69,18 +89,21 @@ export const useSearchLogic = (allTasks: any[], dailyTasks: any[]) => {
   }, [isFocused, searchQuery, history]);
 
   useEffect(() => {
-    const count = Math.min(allTasks.length, 5);
+    const count = Math.min(filteredGlobal.length, 5);
     const targetHeight =
-      searchQuery.length > 0 && allTasks.length > 0
-        ? count * GLOBAL_ITEM_HEIGHT + GLOBAL_HEADER_HEIGHT
+      searchQuery.length > 0 && count > 0
+        ? count * GLOBAL_ITEM_HEIGHT +
+          (count > 1 ? count - 1 : 0) +
+          GLOBAL_HEADER_HEIGHT
         : 0;
 
     Animated.timing(globalTrayAnim, {
       toValue: targetHeight,
-      duration: 250,
+      duration: 200,
       useNativeDriver: false,
+      easing: Easing.out(Easing.quad),
     }).start();
-  }, [searchQuery, allTasks.length]);
+  }, [searchQuery, filteredGlobal.length]);
 
   // --- Toggle Handler ---
   const handleSearchToggle = useCallback(() => {
@@ -100,6 +123,8 @@ export const useSearchLogic = (allTasks: any[], dailyTasks: any[]) => {
     isFocused,
     setIsFocused,
     history,
+    dailyMatches: filteredDaily,
+    globalMatches: filteredGlobal,
 
     // Animations
     searchBarAnim,

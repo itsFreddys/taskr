@@ -88,7 +88,10 @@ export const SearchTray = ({
         <View style={styles.trayHeader}>
           <Text style={styles.trayHeaderText}>Search Results:</Text>
         </View>
-        <ScrollView keyboardShouldPersistTaps="always">
+        <ScrollView
+          keyboardShouldPersistTaps="always"
+          contentContainerStyle={{ paddingBottom: 0 }}
+        >
           {globalMatches.map((item, index) => (
             <View key={item.$id}>
               {index > 0 && <View style={styles.itemSeparator} />}

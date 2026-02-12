@@ -38,19 +38,6 @@ export const TasksTab = ({
   // 🧠 Logic abstracted to Custom Hook
   const search = useSearchLogic(allTasks, tasks);
 
-  // --- Filtering Logic ---
-  const dailyMatches = (tasks || []).filter((task: any) => {
-    if (task.type === "separator" || !task.title) return true;
-    return task.title.toLowerCase().includes(search.searchQuery.toLowerCase());
-  });
-
-  const globalMatches = (allTasks || []).filter((task: any) => {
-    const query = search.searchQuery.trim().toLowerCase();
-    if (!query) return false;
-    const isAlreadyInDaily = dailyMatches.some((d: any) => d.$id === task.$id);
-    return task.title?.toLowerCase().includes(query) && !isAlreadyInDaily;
-  });
-
   // --- Layout Calculations ---
   const searchHeight = search.searchBarAnim.interpolate({
     inputRange: [0, 1],
@@ -72,7 +59,7 @@ export const TasksTab = ({
     >
       <View style={{ flex: 1 }}>
         <Animated.FlatList
-          data={dailyMatches}
+          data={search.dailyMatches}
           onScroll={onScroll}
           keyExtractor={(item) => item.$id || item.id}
           scrollEventThrottle={16}
@@ -126,7 +113,7 @@ export const TasksTab = ({
                     historyAnim={search.historyAnim}
                     onRemoveHistory={search.removeFromHistory}
                     onSelectHistory={search.setSearchQuery}
-                    globalMatches={globalMatches}
+                    globalMatches={search.globalMatches}
                     globalTrayAnim={search.globalTrayAnim}
                     onEditTask={(task) => console.log("Navigate:", task.$id)}
                     onQuickAdd={(id) => {
