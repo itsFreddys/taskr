@@ -15,6 +15,7 @@ export type Frequency = "once" | "daily" | "weekly" | "monthly";
 
 export interface Task extends Models.Document {
   // identity & basics
+  taskId: string;
   creatorId: string;
   isShared: boolean;
   teamId?: string;

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Surface, useTheme, Portal, Modal } from "react-native-paper";
 import * as Haptics from "expo-haptics";
+import { Task } from "@/types/database.type";
 
 // --- Logic & Hooks ---
 import { useTaskTimer } from "@/hooks/useTaskTimer";
@@ -11,6 +12,7 @@ import { CustomTimerPicker } from "@/components/CustomTimerPicker";
 // --- Sub-Components ---
 import { TaskInfoZone } from "@/components/task-card/TaskInfoZone";
 import { TaskActionZone } from "@/components/task-card/TaskActionZone";
+import { useRouter } from "expo-router";
 
 // 🟢 Utility (Consider moving to @/lib/utils/timeUtils.ts later)
 const formatTimeDisplay = (time: any) => {
@@ -34,6 +36,7 @@ export const TaskCard = ({
 }: any) => {
   const theme = useTheme();
   const styles = createStyles(theme);
+  const router = useRouter();
   const isCompleted = task.status === "completed";
 
   // 🟢 Logic extracted to custom hook
@@ -89,6 +92,10 @@ export const TaskCard = ({
     setRightVisible(true);
   };
 
+  const handleGotoTask = (task: Task) => {
+    router.push(`/task/${task.$id}`);
+  };
+
   return (
     <Surface
       style={[styles.card, isCompleted && styles.completedCard, style]}
@@ -105,9 +112,17 @@ export const TaskCard = ({
               position={menuPos}
               items={[
                 {
-                  label: isCompleted ? "Reactivate Task" : "Mark Complete",
-                  onPress: isCompleted ? handleReactivate : handleToggle,
+                  label: "Task Details",
+                  onPress: () => handleGotoTask(task),
                 },
+                ...(isCompleted
+                  ? [
+                      {
+                        label: "Reactivate Task",
+                        onPress: () => handleReactivate(),
+                      },
+                    ]
+                  : []),
                 ...(!isCompleted
                   ? [
                       {

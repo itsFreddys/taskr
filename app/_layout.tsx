@@ -54,6 +54,12 @@ export default function RootLayout() {
                     title: "Task Details",
                   }}
                 />
+                <Stack.Screen
+                  name="task/[id]"
+                  options={{
+                    title: "Task Details",
+                  }}
+                />
               </Stack>
             </RouteGuard>
           </SafeAreaProvider>
