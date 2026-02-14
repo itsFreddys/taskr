@@ -7,11 +7,18 @@ import {
   useTheme,
   Surface,
   Button,
+  ProgressBar,
 } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SLIDE_WIDTH = SCREEN_WIDTH;
+
+// 🟢 Mock Data for UI development (Will replace with real data later)
+const last7DaysHistory = [true, true, true, true, true, false, true]; // Last item is "Today"
+const currentStreak = 12;
+const nextMilestoneGoal = 15;
+const milestoneProgress = currentStreak / nextMilestoneGoal; // 0.8 (80%)
 
 const StatCard = ({ label, value, icon, color, styles }: any) => (
   <Surface style={styles.statCard} elevation={1}>
@@ -167,31 +174,51 @@ export default function TaskDetailScreen() {
             </Text>
           </Surface>
         </View>
-
-        {/* --- More sections will go here in the next increment --- */}
       </ScrollView>
-      <Surface style={styles.actionCenter} elevation={4}>
-        <View style={styles.actionRowPrimary}>
-          <Button
-            mode="contained"
-            onPress={() => console.log("Complete")}
-            style={styles.completeButton}
-            contentStyle={{ height: 50 }}
-          >
-            Mark Done for Today
-          </Button>
-        </View>
 
-        <View style={styles.actionRowSecondary}>
-          <IconButton icon="pause-circle-outline" onPress={() => {}} />
-          <Text variant="labelMedium" style={{ flex: 1, opacity: 0.6 }}>
+      {/* --- More sections will go here in the next increment --- */}
+      {/* --- 🟢 THE FLOATING ACTION PILL --- */}
+      <View style={styles.floatingFooter}>
+        {/* The Slider Track */}
+        <Surface style={styles.sliderTrack} elevation={2}>
+          <View style={styles.sliderBackgroundTextContainer}>
+            <Text variant="labelLarge" style={styles.sliderText}>
+              Swipe to Complete
+            </Text>
+          </View>
+
+          {/* The Handle (This will become interactive next) */}
+          <View style={styles.sliderHandle}>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={28}
+              color={theme.colors.onPrimary}
+            />
+          </View>
+        </Surface>
+
+        {/* Secondary Actions (Tucked subtly below the pill) */}
+        {/* <View style={styles.secondaryActionRow}>
+          <Button
+            mode="text"
+            compact
+            icon="pause-circle-outline"
+            onPress={() => {}}
+            labelStyle={{ fontSize: 12, opacity: 0.6 }}
+          >
             Pause Streak
-          </Text>
-          <Button mode="text" textColor={theme.colors.error} onPress={() => {}}>
-            Delete
           </Button>
-        </View>
-      </Surface>
+          <Button
+            mode="text"
+            compact
+            textColor={theme.colors.error}
+            onPress={() => {}}
+            labelStyle={{ fontSize: 12, opacity: 0.6 }}
+          >
+            Delete Task
+          </Button>
+        </View> */}
+      </View>
     </View>
   );
 }
@@ -221,11 +248,11 @@ const createStyles = (theme: any) =>
       alignItems: "center",
       marginBottom: 40,
     },
-    statsRowWrapper: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingHorizontal: 20, // 🟢 Stats row stays indented even if slide is full-width
-    },
+    // statsRowWrapper: {
+    //   flexDirection: "row",
+    //   justifyContent: "space-between",
+    //   paddingHorizontal: 20, // 🟢 Stats row stays indented even if slide is full-width
+    // },
     timerSlideWrapper: {
       flex: 1,
       paddingHorizontal: 20, // 🟢 Provides that "gap" feel for the Timer container
@@ -342,5 +369,55 @@ const createStyles = (theme: any) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+    },
+    // Add these to your createStyles block
+    floatingFooter: {
+      position: "absolute",
+      bottom: 20, // Floating above the bottom edge
+      left: 20,
+      right: 20,
+      alignItems: "center",
+    },
+    sliderTrack: {
+      width: "100%",
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: theme.colors.surface,
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 6, // Padding for the handle
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: "rgba(0,0,0,0.05)",
+    },
+    sliderBackgroundTextContainer: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    sliderText: {
+      opacity: 0.3,
+      fontWeight: "bold",
+      textTransform: "uppercase",
+      letterSpacing: 1,
+    },
+    sliderHandle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: theme.colors.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      elevation: 4,
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+    },
+    secondaryActionRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      width: "90%",
+      marginTop: 12,
     },
   });
