@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
 import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
+import { Timeline } from "@/components/task-detail/dashboard/Timeline";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SLIDE_WIDTH = SCREEN_WIDTH;
@@ -90,50 +91,9 @@ export default function TaskDetailScreen() {
                 />
 
                 {/* 🟢 NEW: 7-Day Timeline Section */}
-                <View style={styles.DashboardSection}>
-                  <Text variant="titleMedium" style={styles.sectionTitle}>
-                    Last 7 Days
-                  </Text>
-                  <View style={styles.timelineRow}>
-                    {last7DaysHistory.map((done, index) => {
-                      const isToday = index === last7DaysHistory.length - 1;
-                      return (
-                        <View key={index} style={styles.timelineItemWrapper}>
-                          <View
-                            style={[
-                              styles.timelineDot,
-                              done
-                                ? styles.timelineDotDone
-                                : styles.timelineDotMissed,
-                              isToday && done && styles.timelineDotTodayGlowing, // Optional glow for today
-                            ]}
-                          >
-                            {done && (
-                              <MaterialCommunityIcons
-                                name="check"
-                                size={18}
-                                color={theme.colors.background} // Icon color contrasts with the dot fill
-                                style={{ fontWeight: "bold" }}
-                              />
-                            )}
-                          </View>
-                          {isToday && (
-                            <Text
-                              variant="labelSmall"
-                              style={{
-                                position: "absolute",
-                                bottom: -20,
-                                opacity: 0.6,
-                              }}
-                            >
-                              Today
-                            </Text>
-                          )}
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
+                <Timeline
+                  history={[true, true, true, true, true, false, true]}
+                />
 
                 {/* 🟢 NEW: Next Milestone Section */}
                 <View style={styles.milestoneSection}>
