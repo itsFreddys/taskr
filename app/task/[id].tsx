@@ -12,6 +12,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
+import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SLIDE_WIDTH = SCREEN_WIDTH;
@@ -82,29 +83,11 @@ export default function TaskDetailScreen() {
                 />
 
                 {/* Stats Row */}
-                <View style={styles.statsRow}>
-                  <StatCard
-                    label="Streak"
-                    value={currentStreak.toString()}
-                    icon="fire"
-                    color="#FF9800"
-                    styles={styles}
-                  />
-                  <StatCard
-                    label="Total"
-                    value="148"
-                    icon="check-all"
-                    color="#4CAF50"
-                    styles={styles}
-                  />
-                  <StatCard
-                    label="Best"
-                    value="24"
-                    icon="trophy"
-                    color="#FFD700"
-                    styles={styles}
-                  />
-                </View>
+                <StatsOverview
+                  currentStreak={12}
+                  totalCompletions={148}
+                  bestStreak={24}
+                />
 
                 {/* 🟢 NEW: 7-Day Timeline Section */}
                 <View style={styles.DashboardSection}>

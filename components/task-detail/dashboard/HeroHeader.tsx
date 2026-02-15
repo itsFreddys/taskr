@@ -31,7 +31,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     heroContent: {
       alignItems: "center",
-      marginBottom: 30,
+      marginBottom: 10,
       marginTop: 10,
     },
     emojiContainer: {
