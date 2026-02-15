@@ -14,6 +14,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
 import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
 import { Timeline } from "@/components/task-detail/dashboard/Timeline";
+import { MilestoneTracker } from "@/components/task-detail/dashboard/MilestoneTracker";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SLIDE_WIDTH = SCREEN_WIDTH;
@@ -96,31 +97,7 @@ export default function TaskDetailScreen() {
                 />
 
                 {/* 🟢 NEW: Next Milestone Section */}
-                <View style={styles.milestoneSection}>
-                  <Text variant="titleMedium" style={styles.sectionTitle}>
-                    Next Milestone
-                  </Text>
-
-                  <View style={styles.milestoneSecondHeader}>
-                    <Text variant="bodyMedium" style={styles.milestoneSubtitle}>
-                      {`${
-                        nextMilestoneGoal - currentStreak
-                      } days until a ${nextMilestoneGoal}-day streak!`}
-                    </Text>
-                    <Text
-                      variant="labelLarge"
-                      style={styles.milestonePercentage}
-                    >
-                      {`${Math.round(milestoneProgress * 100)}%`}
-                    </Text>
-                  </View>
-
-                  <ProgressBar
-                    progress={milestoneProgress}
-                    color={theme.colors.primary}
-                    style={styles.progressBar}
-                  />
-                </View>
+                <MilestoneTracker currentStreak={12} nextMilestoneGoal={15} />
               </View>
             </View>
 
