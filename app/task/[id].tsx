@@ -7,7 +7,6 @@ import {
   useTheme,
   Surface,
   Button,
-  ProgressBar, // 🟢 Added import
 } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -15,6 +14,9 @@ import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
 import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
 import { Timeline } from "@/components/task-detail/dashboard/Timeline";
 import { MilestoneTracker } from "@/components/task-detail/dashboard/MilestoneTracker";
+import { TimerDial } from "@/components/task-detail/timer/TimerDial";
+import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
+import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSelector";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SLIDE_WIDTH = SCREEN_WIDTH;
@@ -25,18 +27,6 @@ const currentStreak = 12;
 const nextMilestoneGoal = 15;
 const milestoneProgress = currentStreak / nextMilestoneGoal; // 0.8 (80%)
 
-const StatCard = ({ label, value, icon, color, styles }: any) => (
-  <Surface style={styles.statCard} elevation={1}>
-    <MaterialCommunityIcons name={icon} size={24} color={color} />
-    <Text variant="titleLarge" style={styles.statValue}>
-      {value || "0"}
-    </Text>
-    <Text variant="labelSmall" style={styles.statLabel}>
-      {label}
-    </Text>
-  </Surface>
-);
-
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -44,6 +34,7 @@ export default function TaskDetailScreen() {
   const styles = createStyles(theme);
 
   const [activePage, setActivePage] = useState(0);
+  const [activeSoundId, setActiveSoundId] = useState<string | null>("mute");
 
   const handleScroll = (event: any) => {
     const x = event.nativeEvent.contentOffset.x;
@@ -105,68 +96,24 @@ export default function TaskDetailScreen() {
             <View style={styles.slide}>
               <View style={styles.timerSlideWrapper}>
                 {/* 🟢 The Outer Dial/Ring */}
-                <View style={styles.timerDial}>
-                  {/* 🟢 Centered Content */}
-                  <View style={styles.dialInternalContent}>
-                    <Text variant="labelLarge" style={styles.timerSubtitle}>
-                      Focusing
-                    </Text>
-                    <Text style={styles.largeTimerDisplay}>25:00</Text>
 
-                    {/* Play/Pause Button inside the ring or right below it */}
-                    <Button
-                      mode="contained"
-                      style={styles.dialPlayButton}
-                      icon="play"
-                      contentStyle={{ height: 48 }}
-                    >
-                      Start
-                    </Button>
-                  </View>
-                </View>
+                <TimerDial
+                  displayTime="25:00"
+                  isPlaying={false}
+                  onToggle={() => console.log("Toggle Timer")}
+                />
 
-                {/* 🟢 Time Adjustments (Outside the ring for clean ergonomics) */}
-                <View style={styles.dialAdjustmentRow}>
-                  <IconButton
-                    icon="minus-circle-outline"
-                    size={32}
-                    onPress={() => console.log("Decrease")}
-                  />
-
-                  <View style={styles.presetChips}>
-                    {["15m", "25m", "45m"].map((m) => (
-                      <Surface key={m} style={styles.chip} elevation={1}>
-                        <Text variant="labelSmall">{m}</Text>
-                      </Surface>
-                    ))}
-                  </View>
-
-                  <IconButton
-                    icon="plus-circle-outline"
-                    size={32}
-                    onPress={() => console.log("Increase")}
-                  />
-                </View>
+                <TimeAdjusters
+                  presets={[15, 25, 45]}
+                  onAdjust={(min: number) => console.log(`Adjust by ${min}`)}
+                  onSelectPreset={(min: number) => console.log(`Set to ${min}`)}
+                />
               </View>
               {/* 🟢 Ambient Soundscape (Bottom) */}
-              <View style={styles.soundscapeRow}>
-                {[
-                  { id: "mute", icon: "volume-off" },
-                  { id: "rain", icon: "weather-pouring" },
-                  { id: "lofi", icon: "cassette" },
-                  { id: "forest", icon: "tree" },
-                  { id: "noise", icon: "waves" },
-                ].map((sound) => (
-                  <IconButton
-                    key={sound.id}
-                    icon={sound.icon}
-                    size={24}
-                    mode="contained-tonal"
-                    style={styles.soundButton}
-                    onPress={() => console.log(`Play ${sound.id}`)}
-                  />
-                ))}
-              </View>
+              <SoundscapeSelector
+                activeSoundId={activeSoundId}
+                onSelectSound={(id) => setActiveSoundId(id)}
+              />
             </View>
           </ScrollView>
 
