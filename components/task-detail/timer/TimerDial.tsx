@@ -1,12 +1,13 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Text, Button, useTheme } from "react-native-paper";
+import Svg, { Circle } from "react-native-svg";
 
 interface TimerDialProps {
   displayTime: string;
   isPlaying: boolean;
   onToggle: () => void;
-  progress?: number; // For future ring animation
+  progress: number; // For future ring animation
 }
 
 export const TimerDial = ({
@@ -18,20 +19,56 @@ export const TimerDial = ({
   const theme = useTheme();
   const styles = createStyles(theme);
 
+  // Dial constants
+  const size = 260;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const strokeDashoffset = progress * circumference;
+
   return (
-    <View style={styles.timerDial}>
+    <View style={styles.container}>
+      {/* 🟢 The SVG Ring */}
+      <View style={[styles.svgWrapper, { transform: [{ scaleX: 1 }] }]}>
+        <Svg width={size} height={size}>
+          {/* Background Track (The light ring) */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={theme.colors.primaryContainer}
+            strokeWidth={strokeWidth}
+            fill="transparent"
+          />
+          {/* Active Progress Ring (The colored part) */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={theme.colors.primary}
+            strokeWidth={strokeWidth}
+            fill="transparent"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            rotation="-90" // Start from the top
+            origin={`${size / 2}, ${size / 2}`}
+          />
+        </Svg>
+      </View>
+
+      {/* 🟢 The Centered Content */}
       <View style={styles.dialInternalContent}>
         <Text variant="labelLarge" style={styles.timerSubtitle}>
           Focusing
         </Text>
         <Text style={styles.largeTimerDisplay}>{displayTime}</Text>
-
         <Button
           mode="contained"
           style={styles.dialPlayButton}
           icon={isPlaying ? "pause" : "play"}
           onPress={onToggle}
-          contentStyle={{ height: 48 }}
         >
           {isPlaying ? "Pause" : "Start"}
         </Button>
@@ -42,21 +79,15 @@ export const TimerDial = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    timerDial: {
+    container: {
       width: 260,
       height: 260,
-      borderRadius: 130,
-      borderWidth: 12,
-      borderColor: theme.colors.primaryContainer,
-      borderTopColor: theme.colors.primary, // The "gauge" indicator
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: theme.colors.surface,
-      elevation: 4,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 10,
+    },
+    svgWrapper: {
+      position: "absolute",
+      transform: [{ rotateZ: "0deg" }],
     },
     dialInternalContent: {
       alignItems: "center",

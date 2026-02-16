@@ -41,9 +41,7 @@ export const SoundscapeSelector = ({
               : styles.soundButton
           }
           iconColor={
-            activeSoundId === sound.id
-              ? theme.colors.onPrimary
-              : theme.colors.primary
+            activeSoundId === sound.id ? "#f3f1f3" : theme.colors.primary
           }
           onPress={() => onSelectSound(sound.id)}
         />
