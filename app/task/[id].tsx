@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, Dimensions } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Text, IconButton, useTheme, Surface } from "react-native-paper";
+import {
+  Text,
+  IconButton,
+  useTheme,
+  Surface,
+  Portal,
+  Modal,
+} from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { useTimer } from "@/hooks/useTimer";
@@ -13,6 +20,7 @@ import { MilestoneTracker } from "@/components/task-detail/dashboard/MilestoneTr
 import { TimerDial } from "@/components/task-detail/timer/TimerDial";
 import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
 import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSelector";
+import { CustomTimerPicker } from "@/components/CustomTimerPicker";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -25,6 +33,7 @@ export default function TaskDetailScreen() {
 
   const [activePage, setActivePage] = useState(0);
   const [activeSoundId, setActiveSoundId] = useState<string | null>("mute");
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const handleScroll = (event: any) => {
     const x = event.nativeEvent.contentOffset.x;
@@ -92,6 +101,8 @@ export default function TaskDetailScreen() {
                   isPlaying={isActive}
                   onToggle={toggle}
                   progress={progress}
+                  onEditRequest={() => setPickerVisible(true)}
+                  onResetRequest={() => reset(25)}
                 />
 
                 <TimeAdjusters
@@ -155,6 +166,16 @@ export default function TaskDetailScreen() {
           </View>
         </Surface>
       </View>
+      <Portal>
+        <CustomTimerPicker
+          visible={pickerVisible}
+          onClose={() => setPickerVisible(false)}
+          onConfirm={(seconds: number) => {
+            reset(seconds); // Updates the useTimer hook state
+            setPickerVisible(false);
+          }}
+        />
+      </Portal>
     </View>
   );
 }

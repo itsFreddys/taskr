@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Pressable, Alert } from "react-native";
 import { Text, Button, useTheme } from "react-native-paper";
 import Svg, { Circle } from "react-native-svg";
 
@@ -8,12 +8,16 @@ interface TimerDialProps {
   isPlaying: boolean;
   onToggle: () => void;
   progress: number; // For future ring animation
+  onEditRequest: () => void;
+  onResetRequest: () => void;
 }
 
 export const TimerDial = ({
   displayTime,
   isPlaying,
   onToggle,
+  onEditRequest,
+  onResetRequest,
   progress = 0,
 }: TimerDialProps) => {
   const theme = useTheme();
@@ -63,7 +67,14 @@ export const TimerDial = ({
         <Text variant="labelLarge" style={styles.timerSubtitle}>
           Focusing
         </Text>
-        <Text style={styles.largeTimerDisplay}>{displayTime}</Text>
+
+        <Pressable
+          onPress={() => onEditRequest()}
+          onLongPress={() => onResetRequest()}
+          delayLongPress={500}
+        >
+          <Text style={styles.largeTimerDisplay}>{displayTime}</Text>
+        </Pressable>
         <Button
           mode="contained"
           style={styles.dialPlayButton}

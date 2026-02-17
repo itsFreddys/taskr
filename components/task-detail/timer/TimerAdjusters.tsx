@@ -27,7 +27,10 @@ export const TimeAdjusters = ({
       <View style={styles.presetChips}>
         {presets.map((minutes) => (
           <Surface key={minutes} style={styles.chip} elevation={1}>
-            <Text variant="labelSmall" onPress={() => onSelectPreset(minutes)}>
+            <Text
+              variant="labelSmall"
+              onPress={() => onSelectPreset(minutes * 60)}
+            >
               {minutes}m
             </Text>
           </Surface>

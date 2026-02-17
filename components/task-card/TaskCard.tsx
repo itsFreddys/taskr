@@ -205,21 +205,16 @@ export const TaskCard = ({
         </View>
       </View>
       <Portal>
-        <Modal
+        <CustomTimerPicker
           visible={pickerVisible}
-          onDismiss={() => setPickerVisible(false)}
-          contentContainerStyle={styles.modalContent}
-        >
-          <CustomTimerPicker
-            onAdd={(totalSeconds) => {
-              // 🟢 Update the hook directly with seconds
-              setTimeLeft(totalSeconds);
-              setIsTimerRunning(true);
-              setPickerVisible(false);
-            }}
-            onCancel={() => setPickerVisible(false)}
-          />
-        </Modal>
+          onClose={() => setPickerVisible(false)}
+          onConfirm={(totalSeconds) => {
+            // 🟢 Update the hook directly with seconds
+            setTimeLeft(totalSeconds);
+            setIsTimerRunning(true);
+            setPickerVisible(false);
+          }}
+        />
       </Portal>
     </Surface>
   );

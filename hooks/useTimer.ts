@@ -24,11 +24,10 @@ export const useTimer = (initialMinutes: number = 25) => {
   // Actions
   const toggle = () => setIsActive(!isActive);
 
-  const reset = (minutes: number) => {
+  const reset = (seconds: number) => {
     setIsActive(false);
-    const newSeconds = minutes * 60;
-    setSecondsLeft(newSeconds);
-    setTotalTime(newSeconds);
+    setSecondsLeft(seconds);
+    setTotalTime(seconds);
   };
 
   const adjustTime = (minutes: number) => {

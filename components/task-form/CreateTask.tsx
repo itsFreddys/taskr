@@ -1,5 +1,4 @@
 import { CustomEmojiPicker } from "@/components/CustomEmojiPicker";
-import { CustomTimerPicker } from "@/components/CustomTimerPicker";
 import { DATABASE_ID, databases, TASKS_TABLE_ID } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
 import * as Haptics from "expo-haptics";

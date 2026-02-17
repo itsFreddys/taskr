@@ -193,8 +193,9 @@ export const TimerManagementSection = ({
                     onPress={() => setIsCustomTimer(false)}
                   />
                   <CustomTimerPicker
-                    onCancel={() => setIsCustomTimer(false)}
-                    onAdd={handleAddCustomTimer}
+                    visible={isCustomTimer}
+                    onClose={() => setIsCustomTimer(false)}
+                    onConfirm={handleAddCustomTimer}
                   />
                 </View>
               )}
