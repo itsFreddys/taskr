@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Dimensions } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
@@ -10,6 +10,7 @@ import {
   Modal,
 } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as ScreenOrientation from "expo-screen-orientation";
 
 import { useTimer } from "@/hooks/useTimer";
 
@@ -30,10 +31,32 @@ export default function TaskDetailScreen() {
   const styles = createStyles(theme);
   const { displayTime, isActive, progress, toggle, reset, adjustTime } =
     useTimer(25);
+  const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
+    ScreenOrientation.Orientation.PORTRAIT_UP
+  );
 
   const [activePage, setActivePage] = useState(0);
   const [activeSoundId, setActiveSoundId] = useState<string | null>("mute");
   const [pickerVisible, setPickerVisible] = useState(false);
+
+  useEffect(() => {
+    // 1. Get initial orientation
+    ScreenOrientation.getOrientationAsync().then((o) => setOrientation(o));
+
+    // 2. Listen for changes
+    const subscription = ScreenOrientation.addOrientationChangeListener(
+      (evt) => {
+        setOrientation(evt.orientationInfo.orientation);
+      }
+    );
+
+    return () =>
+      ScreenOrientation.removeOrientationChangeListener(subscription);
+  }, []);
+
+  const isLandscape =
+    orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
+    orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
 
   const handleScroll = (event: any) => {
     const x = event.nativeEvent.contentOffset.x;
@@ -41,148 +64,185 @@ export default function TaskDetailScreen() {
     setActivePage(currentIndex);
   };
 
-  return (
-    <View
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 1. Header (Indented) */}
-        <View style={styles.paddedSection}>
-          <View style={styles.actionRow}>
-            <IconButton icon="pencil-outline" onPress={() => {}} />
-          </View>
-        </View>
+  if (isLandscape) {
+    return (
+      <View style={styles.landscapeContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
+        {/* Hide header in landscape */}
+        <View style={styles.landscapeContent}>
+          <TimerDial
+            displayTime={displayTime}
+            isPlaying={isActive}
+            onToggle={toggle}
+            progress={progress}
+            onEditRequest={() => setPickerVisible(true)}
+            onResetRequest={() => reset(25)}
+            size={Dimensions.get("window").height * 0.9} // 🟢 Make it huge!
+          />
 
-        {/* --- PAGER SECTION --- */}
-        <View style={styles.pagerWrapper}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-          >
-            {/* --- SLIDE 1: THE OVERVIEW --- */}
-            <View style={styles.slide}>
-              <View style={styles.overviewSlideWrapper}>
-                <HeroHeader
-                  emoji="🚀"
-                  title="Task Title"
-                  category="Health & Wellness"
-                />
-
-                {/* Stats Row */}
-                <StatsOverview
-                  currentStreak={12}
-                  totalCompletions={148}
-                  bestStreak={24}
-                />
-
-                {/* 🟢 NEW: 7-Day Timeline Section */}
-                <Timeline
-                  history={[true, true, true, true, true, false, true]}
-                />
-
-                {/* 🟢 NEW: Next Milestone Section */}
-                <MilestoneTracker currentStreak={12} nextMilestoneGoal={15} />
-              </View>
-            </View>
-
-            {/* --- SLIDE 2: THE TIMER COMMAND CENTER --- */}
-            <View style={styles.slide}>
-              <View style={styles.timerSlideWrapper}>
-                {/* 🟢 The Outer Dial/Ring */}
-
-                <TimerDial
-                  displayTime={displayTime}
-                  isPlaying={isActive}
-                  onToggle={toggle}
-                  progress={progress}
-                  onEditRequest={() => setPickerVisible(true)}
-                  onResetRequest={() => reset(25)}
-                />
-
-                <TimeAdjusters
-                  presets={[15, 25, 45]}
-                  onAdjust={adjustTime}
-                  onSelectPreset={reset}
-                />
-              </View>
-              {/* 🟢 Ambient Soundscape (Bottom) */}
-              <SoundscapeSelector
-                activeSoundId={activeSoundId}
-                onSelectSound={(id) => setActiveSoundId(id)}
-              />
-            </View>
-          </ScrollView>
-
-          {/* --- Pagination Dots --- */}
-          <View style={styles.dotRow}>
-            <View style={[styles.dot, activePage === 0 && styles.activeDot]} />
-            <View style={[styles.dot, activePage === 1 && styles.activeDot]} />
-          </View>
-        </View>
-
-        {/* NOTES SECTION */}
-        <View style={styles.paddedSection}>
-          <View style={styles.sectionHeader}>
-            <Text variant="titleMedium" style={{ fontWeight: "bold" }}>
-              Notes
-            </Text>
-            <IconButton
-              icon="plus"
-              size={20}
-              onPress={() => console.log("Add Note")}
+          {/* Optional: Add mini controls on the side */}
+          <View style={styles.landscapeSidebar}>
+            <SoundscapeSelector
+              activeSoundId={activeSoundId}
+              onSelectSound={setActiveSoundId}
             />
           </View>
-
-          <Surface style={styles.notesSurface} elevation={0}>
-            <Text variant="bodyMedium" style={styles.notesPlaceholder}>
-              Tap to add notes about your progress, gym PRs, or reflections...
-            </Text>
-          </Surface>
         </View>
-      </ScrollView>
-
-      {/* FLOATING FOOTER PILL */}
-      <View style={styles.floatingFooter}>
-        <Surface style={styles.sliderTrack} elevation={2}>
-          <View style={styles.sliderInner}>
-            <View style={styles.sliderBackgroundTextContainer}>
-              <Text variant="labelLarge" style={styles.sliderText}>
-                Swipe to Complete
-              </Text>
+      </View>
+    );
+  } else {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen
+          options={{
+            headerShown: !isLandscape, // Show in Portrait, Hide in Landscape
+            title: "Task Details", // Or your dynamic title
+          }}
+        />
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 1. Header (Indented) */}
+          <View style={styles.paddedSection}>
+            <View style={styles.actionRow}>
+              <IconButton icon="pencil-outline" onPress={() => {}} />
             </View>
-            <View style={styles.sliderHandle}>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={28}
-                color={theme.colors.onPrimary}
+          </View>
+
+          {/* --- PAGER SECTION --- */}
+          <View style={styles.pagerWrapper}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+            >
+              {/* --- SLIDE 1: THE OVERVIEW --- */}
+              <View style={styles.slide}>
+                <View style={styles.overviewSlideWrapper}>
+                  <HeroHeader
+                    emoji="🚀"
+                    title="Task Title"
+                    category="Health & Wellness"
+                  />
+
+                  {/* Stats Row */}
+                  <StatsOverview
+                    currentStreak={12}
+                    totalCompletions={148}
+                    bestStreak={24}
+                  />
+
+                  {/* 🟢 NEW: 7-Day Timeline Section */}
+                  <Timeline
+                    history={[true, true, true, true, true, false, true]}
+                  />
+
+                  {/* 🟢 NEW: Next Milestone Section */}
+                  <MilestoneTracker currentStreak={12} nextMilestoneGoal={15} />
+                </View>
+              </View>
+
+              {/* --- SLIDE 2: THE TIMER COMMAND CENTER --- */}
+              <View style={styles.slide}>
+                <View style={styles.timerSlideWrapper}>
+                  {/* 🟢 The Outer Dial/Ring */}
+
+                  <TimerDial
+                    displayTime={displayTime}
+                    isPlaying={isActive}
+                    onToggle={toggle}
+                    progress={progress}
+                    onEditRequest={() => setPickerVisible(true)}
+                    onResetRequest={() => reset(25)}
+                    size={260}
+                  />
+
+                  <TimeAdjusters
+                    presets={[15, 25, 45]}
+                    onAdjust={adjustTime}
+                    onSelectPreset={reset}
+                  />
+                </View>
+                {/* 🟢 Ambient Soundscape (Bottom) */}
+                <SoundscapeSelector
+                  activeSoundId={activeSoundId}
+                  onSelectSound={(id) => setActiveSoundId(id)}
+                />
+              </View>
+            </ScrollView>
+
+            {/* --- Pagination Dots --- */}
+            <View style={styles.dotRow}>
+              <View
+                style={[styles.dot, activePage === 0 && styles.activeDot]}
+              />
+              <View
+                style={[styles.dot, activePage === 1 && styles.activeDot]}
               />
             </View>
           </View>
-        </Surface>
+
+          {/* NOTES SECTION */}
+          <View style={styles.paddedSection}>
+            <View style={styles.sectionHeader}>
+              <Text variant="titleMedium" style={{ fontWeight: "bold" }}>
+                Notes
+              </Text>
+              <IconButton
+                icon="plus"
+                size={20}
+                onPress={() => console.log("Add Note")}
+              />
+            </View>
+
+            <Surface style={styles.notesSurface} elevation={0}>
+              <Text variant="bodyMedium" style={styles.notesPlaceholder}>
+                Tap to add notes about your progress, gym PRs, or reflections...
+              </Text>
+            </Surface>
+          </View>
+        </ScrollView>
+
+        {/* FLOATING FOOTER PILL */}
+        <View style={styles.floatingFooter}>
+          <Surface style={styles.sliderTrack} elevation={2}>
+            <View style={styles.sliderInner}>
+              <View style={styles.sliderBackgroundTextContainer}>
+                <Text variant="labelLarge" style={styles.sliderText}>
+                  Swipe to Complete
+                </Text>
+              </View>
+              <View style={styles.sliderHandle}>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={28}
+                  color={theme.colors.onPrimary}
+                />
+              </View>
+            </View>
+          </Surface>
+        </View>
+        <Portal>
+          <CustomTimerPicker
+            visible={pickerVisible}
+            onClose={() => setPickerVisible(false)}
+            onConfirm={(seconds: number) => {
+              reset(seconds); // Updates the useTimer hook state
+              setPickerVisible(false);
+            }}
+          />
+        </Portal>
       </View>
-      <Portal>
-        <CustomTimerPicker
-          visible={pickerVisible}
-          onClose={() => setPickerVisible(false)}
-          onConfirm={(seconds: number) => {
-            reset(seconds); // Updates the useTimer hook state
-            setPickerVisible(false);
-          }}
-        />
-      </Portal>
-    </View>
-  );
+    );
+  }
 }
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: { flex: 1 },
+    container: { flex: 1, backgroundColor: theme.colors.background },
     scrollContent: { paddingTop: 0, paddingBottom: 150 }, // Extra padding for floating footer
     paddedSection: { paddingHorizontal: 20, marginTop: 10 },
     actionRow: { flexDirection: "row-reverse" },
@@ -284,5 +344,25 @@ const createStyles = (theme: any) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.3,
       shadowRadius: 4,
+    },
+
+    // landscape styles
+    landscapeContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    landscapeContent: {
+      flexDirection: "row", // Dial on left, sounds on right
+      alignItems: "center",
+      justifyContent: "space-around",
+      width: "100%",
+      paddingHorizontal: 40,
+    },
+    landscapeSidebar: {
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 20,
     },
   });

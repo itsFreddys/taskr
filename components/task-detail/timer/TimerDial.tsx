@@ -10,6 +10,7 @@ interface TimerDialProps {
   progress: number; // For future ring animation
   onEditRequest: () => void;
   onResetRequest: () => void;
+  size: number;
 }
 
 export const TimerDial = ({
@@ -18,21 +19,25 @@ export const TimerDial = ({
   onToggle,
   onEditRequest,
   onResetRequest,
+  size = 260,
   progress = 0,
 }: TimerDialProps) => {
   const theme = useTheme();
   const styles = createStyles(theme);
 
   // Dial constants
-  const size = 260;
-  const strokeWidth = 12;
+  // const size = 260;
+  const strokeWidth = size * 0.05;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-
+  const dynamicStyles = {
+    container: { width: size, height: size },
+    largeTimerDisplay: { fontSize: size * 0.25 }, // Scale text too!
+  };
   const strokeDashoffset = progress * circumference;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       {/* 🟢 The SVG Ring */}
       <View style={[styles.svgWrapper, { transform: [{ scaleX: 1 }] }]}>
         <Svg width={size} height={size}>

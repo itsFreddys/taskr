@@ -2,6 +2,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, View, Modal } from "react-native";
 import { Button, Surface, useTheme } from "react-native-paper";
+import * as Haptics from "expo-haptics";
 
 interface CustomTimerPickerProps {
   visible: boolean;
@@ -42,6 +43,7 @@ export const CustomTimerPicker = ({
     }
 
     // 4. Force to Integer just in case
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onConfirm(Math.floor(totalSeconds));
   };
 
@@ -64,7 +66,10 @@ export const CustomTimerPicker = ({
                   mode="countdown"
                   display="spinner"
                   onChange={(event, selectedDate) => {
-                    if (selectedDate) setDate(selectedDate);
+                    if (selectedDate) {
+                      Haptics.selectionAsync();
+                      setDate(selectedDate);
+                    }
                   }}
                   style={styles.picker}
                   textColor={theme.colors.onSurface}
