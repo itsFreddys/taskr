@@ -29,8 +29,15 @@ export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams();
   const theme = useTheme();
   const styles = createStyles(theme);
-  const { displayTime, isActive, progress, toggle, reset, adjustTime } =
-    useTimer(25);
+  const {
+    displayTime,
+    isActive,
+    progress,
+    secondsLeft,
+    toggle,
+    reset,
+    adjustTime,
+  } = useTimer(25);
   const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
     ScreenOrientation.Orientation.PORTRAIT_UP
   );
@@ -73,6 +80,7 @@ export default function TaskDetailScreen() {
           <TimerDial
             displayTime={displayTime}
             isPlaying={isActive}
+            secondsRemaining={secondsLeft}
             onToggle={toggle}
             progress={progress}
             onEditRequest={() => setPickerVisible(true)}
@@ -153,6 +161,7 @@ export default function TaskDetailScreen() {
                   <TimerDial
                     displayTime={displayTime}
                     isPlaying={isActive}
+                    secondsRemaining={secondsLeft}
                     onToggle={toggle}
                     progress={progress}
                     onEditRequest={() => setPickerVisible(true)}
@@ -358,7 +367,7 @@ const createStyles = (theme: any) =>
       alignItems: "center",
       justifyContent: "space-around",
       width: "100%",
-      paddingHorizontal: 40,
+      paddingHorizontal: 50,
     },
     landscapeSidebar: {
       justifyContent: "center",

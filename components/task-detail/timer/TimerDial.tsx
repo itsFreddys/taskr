@@ -1,10 +1,11 @@
-import React from "react";
+import { useState, useEffect } from "react";
 import { View, StyleSheet, Pressable, Alert } from "react-native";
 import { Text, Button, useTheme } from "react-native-paper";
 import Svg, { Circle } from "react-native-svg";
 
 interface TimerDialProps {
   displayTime: string;
+  secondsRemaining: number;
   isPlaying: boolean;
   onToggle: () => void;
   progress: number; // For future ring animation
@@ -15,6 +16,7 @@ interface TimerDialProps {
 
 export const TimerDial = ({
   displayTime,
+  secondsRemaining,
   isPlaying,
   onToggle,
   onEditRequest,
@@ -24,6 +26,34 @@ export const TimerDial = ({
 }: TimerDialProps) => {
   const theme = useTheme();
   const styles = createStyles(theme);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  const baseSize = 260;
+  const scaleFactor = size / baseSize;
+  const dynamicFontSize = 65 * scaleFactor;
+  const finalLargeDisplaySize = size > 260 ? 100 : 65;
+  const subtitleSize = size > 260 ? 18 : 12;
+  const subtitleMargin = size > 260 ? -10 : -5;
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const ghostTimeStr = currentTime.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  const finishTimeDate = new Date(
+    currentTime.getTime() + secondsRemaining * 1000
+  );
+  const finishTimeStr = finishTimeDate.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 
   // Dial constants
   // const size = 260;
@@ -39,6 +69,7 @@ export const TimerDial = ({
   return (
     <View style={[styles.container, dynamicStyles.container]}>
       {/* 🟢 The SVG Ring */}
+
       <View style={[styles.svgWrapper, { transform: [{ scaleX: 1 }] }]}>
         <Svg width={size} height={size}>
           {/* Background Track (The light ring) */}
@@ -69,8 +100,14 @@ export const TimerDial = ({
 
       {/* 🟢 The Centered Content */}
       <View style={styles.dialInternalContent}>
-        <Text variant="labelLarge" style={styles.timerSubtitle}>
-          Focusing
+        <Text
+          variant="labelLarge"
+          style={[
+            styles.timerSubtitle,
+            { fontSize: subtitleSize, marginBottom: subtitleMargin },
+          ]}
+        >
+          Finishes at {finishTimeStr}
         </Text>
 
         <Pressable
@@ -78,7 +115,14 @@ export const TimerDial = ({
           onLongPress={() => onResetRequest()}
           delayLongPress={500}
         >
-          <Text style={styles.largeTimerDisplay}>{displayTime}</Text>
+          <Text
+            style={[
+              styles.largeTimerDisplay,
+              { fontSize: finalLargeDisplaySize },
+            ]}
+          >
+            {displayTime}
+          </Text>
         </Pressable>
         <Button
           mode="contained"
@@ -113,16 +157,17 @@ const createStyles = (theme: any) =>
       fontSize: 12,
       fontWeight: "bold",
       textTransform: "uppercase",
-      letterSpacing: 2,
+      letterSpacing: 1,
       color: theme.colors.primary,
       opacity: 0.7,
       marginBottom: -5,
     },
     largeTimerDisplay: {
       fontSize: 64,
-      fontWeight: "200",
+      fontWeight: "400",
       color: theme.colors.onSurface,
-      fontVariant: ["tabular-nums"],
+      opacity: 0.9,
+      // fontVariant: ["tabular-nums"],
     },
     dialPlayButton: {
       marginTop: 10,

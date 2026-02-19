@@ -1,3 +1,4 @@
+import * as KeepAwake from "expo-keep-awake";
 import { useState, useEffect, useRef } from "react";
 
 export const useTimer = (initialMinutes: number = 25) => {
@@ -5,6 +6,20 @@ export const useTimer = (initialMinutes: number = 25) => {
   const [isActive, setIsActive] = useState(false);
   const [totalTime, setTotalTime] = useState(initialMinutes * 60);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (isActive && secondsLeft > 0) {
+      KeepAwake.activateKeepAwakeAsync(); // 🟢 Force screen on
+      // ... interval logic
+    } else {
+      KeepAwake.activateKeepAwakeAsync(); // 🔴 Allow sleep
+      // ... clear interval
+    }
+
+    return () => {
+      KeepAwake.deactivateKeepAwake(); // 🔴 Cleanup on unmount
+    };
+  }, [isActive, secondsLeft]);
 
   useEffect(() => {
     if (isActive && secondsLeft > 0) {
@@ -52,6 +67,7 @@ export const useTimer = (initialMinutes: number = 25) => {
   return {
     displayTime: formatTime(),
     isActive,
+    secondsLeft,
     progress,
     toggle,
     reset,
