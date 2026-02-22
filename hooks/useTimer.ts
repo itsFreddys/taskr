@@ -45,9 +45,9 @@ export const useTimer = (initialMinutes: number = 25) => {
     setTotalTime(seconds);
   };
 
-  const adjustTime = (minutes: number) => {
+  const adjustTime = (amount: number) => {
     setSecondsLeft((prev) => {
-      const next = prev + minutes * 60;
+      const next = prev + amount * 10;
       const final = next > 0 ? next : 0;
       // Update totalTime if we are increasing the cap
       if (final > totalTime) setTotalTime(final);

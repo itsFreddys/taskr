@@ -1,6 +1,13 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, View, Modal } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  Modal,
+  useWindowDimensions,
+  Platform,
+} from "react-native";
 import { Button, Surface, useTheme } from "react-native-paper";
 import * as Haptics from "expo-haptics";
 
@@ -17,6 +24,8 @@ export const CustomTimerPicker = ({
 }: CustomTimerPickerProps) => {
   const theme = useTheme();
   const styles = createStyles(theme);
+  const { width } = useWindowDimensions();
+  const isLandscape = width > 500;
   // Using a Date object to track duration (e.g., 00:01:30 for 1min 30sec)
   const [date, setDate] = useState(new Date(0, 0, 0, 0, 0, 0));
 
@@ -44,7 +53,7 @@ export const CustomTimerPicker = ({
 
     // 4. Force to Integer just in case
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onConfirm(Math.floor(totalSeconds));
+    onConfirm(Math.floor(totalSeconds * 60));
   };
 
   return (
@@ -53,13 +62,26 @@ export const CustomTimerPicker = ({
       animationType="slide" // 🟢 This creates the slide-in effect
       transparent={true} // 🟢 Allows us to see the main screen behind the dim
       onRequestClose={onClose}
+      supportedOrientations={[
+        "portrait",
+        "landscape",
+        "landscape-left",
+        "landscape-right",
+      ]}
     >
       {/* 🟢 Backdrop: Tapping the dimmed area closes the picker */}
       <Pressable style={styles.backdrop} onPress={onClose}>
         <View style={styles.modalContainer}>
           {/* 🟢 The Content: We stop propagation so clicking the picker doesn't close it */}
           <Pressable onPress={(e) => e.stopPropagation()}>
-            <Surface style={styles.sheet} elevation={5}>
+            <Surface
+              style={[
+                styles.sheet,
+                // 🟢 CHANGED: Adjust width and max-width for landscape
+                { width: isLandscape ? "60%" : "100%", alignSelf: "center" },
+              ]}
+              elevation={5}
+            >
               <View style={styles.pickerContainer}>
                 <DateTimePicker
                   value={date}
@@ -112,9 +134,20 @@ const createStyles = (theme: any) =>
       borderTopRightRadius: 32,
       padding: 20,
       paddingBottom: 40, // Extra padding for the bottom "safe area"
+      alignSelf: "center",
     },
-    pickerContainer: { height: 200, justifyContent: "center" },
-    picker: { height: "100%", width: "100%" },
+    pickerContainer: {
+      height: 200,
+      width: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    picker: {
+      height: "100%",
+      width: Platform.OS === "ios" ? "100%" : 300,
+      alignSelf: "center",
+    },
     buttonRow: { flexDirection: "row", gap: 12, marginTop: 20 },
     flexBtn: { flex: 1 },
   });
