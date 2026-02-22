@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, Platform } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Platform,
+  Pressable,
+} from "react-native";
 import { useLocalSearchParams, Stack } from "expo-router";
 import {
   Text,
@@ -12,9 +18,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Audio } from "expo-av";
-import { useWindowDimensions } from "react-native"; // 🟢 Added this
+import { useWindowDimensions } from "react-native";
 
-// 🟢 GESTURE & ANIMATION ENGINE
+// GESTURE & ANIMATION ENGINE
 import {
   Gesture,
   GestureDetector,
@@ -25,7 +31,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   runOnJS,
-  interpolate,
 } from "react-native-reanimated";
 
 import { useTimer } from "@/hooks/useTimer";
@@ -124,166 +129,231 @@ export default function TaskDetailScreen() {
     };
   }, [activeSoundId]);
 
-  // 🟢 LANDSCAPE RENDER MODE
-  const LandscapeView = (
-    <View
-      style={[
-        styles.landscapeContainer,
-        { paddingLeft: insets.left + 60, paddingRight: insets.right + 20 },
-      ]}
-    >
-      <Stack.Screen options={{ headerShown: false }} />
-
-      <GestureDetector gesture={pinchGesture}>
-        <Animated.View
-          style={[styles.landscapeContent, { gap: isFullScreen ? 0 : 32 }]}
-        >
-          {/* LEFT: TIMER DIAL */}
-          <Animated.View style={animatedDialStyle}>
-            <TimerDial
-              displayTime={displayTime}
-              isPlaying={isActive}
-              secondsRemaining={secondsLeft}
-              onToggle={toggle}
-              progress={progress}
-              onEditRequest={() => setPickerVisible(true)}
-              onResetRequest={() => reset(25)}
-              isFullScreen={isFullScreen}
-              // Responsive scaling: 0.75 for dashboard, 0.95 for focus mode
-              size={isFullScreen ? windowHeight * 0.95 : windowHeight * 0.8}
-            />
-          </Animated.View>
-
-          {/* RIGHT: COMMAND SIDEBAR */}
-          {!isFullScreen && (
-            <View style={styles.landscapeSidebar}>
-              <TimeAdjusters
-                presets={[1, 6, 12]}
-                onAdjust={adjustTime}
-                onSelectPreset={reset}
-              />
-              <SoundscapeSelector
-                activeSoundId={activeSoundId}
-                onSelectSound={setActiveSoundId}
-              />
-
-              <View style={styles.landscapeFooterWrapper}>
-                <Surface style={styles.landscapeSliderTrack} elevation={2}>
-                  <View style={styles.sliderInner}>
-                    <View style={styles.sliderBackgroundTextContainer}>
-                      <Text
-                        variant="labelSmall"
-                        style={styles.landscapeSliderText}
-                      >
-                        DONE
-                      </Text>
-                    </View>
-                    <View
-                      style={[styles.sliderHandle, { height: 44, width: 44 }]}
-                    >
-                      <MaterialCommunityIcons
-                        name="check"
-                        size={24}
-                        color={theme.colors.onPrimary}
-                      />
-                    </View>
-                  </View>
-                </Surface>
-              </View>
-            </View>
-          )}
-        </Animated.View>
-      </GestureDetector>
-    </View>
-  );
-
-  // 🟢 PORTRAIT RENDER MODE
-  const PortraitView = (
-    <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: true, title: "Task Details" }} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.paddedSection}>
-          <View style={styles.actionRow}>
-            <IconButton icon="pencil-outline" />
-          </View>
-        </View>
-        <View style={styles.pagerWrapper}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={(e) =>
-              setActivePage(
-                Math.round(e.nativeEvent.contentOffset.x / windowWidth)
-              )
-            }
-            scrollEventThrottle={16}
-          >
-            <View style={styles.slide}>
-              <HeroHeader emoji="🚀" title="Task Title" category="Focus" />
-              <StatsOverview
-                currentStreak={12}
-                totalCompletions={148}
-                bestStreak={24}
-              />
-              <Timeline history={[true, true, true, true, true, false, true]} />
-              <MilestoneTracker currentStreak={12} nextMilestoneGoal={15} />
-            </View>
-            <View style={styles.slide}>
-              <View style={styles.timerSlideWrapper}>
-                <TimerDial
-                  displayTime={displayTime}
-                  isPlaying={isActive}
-                  secondsRemaining={secondsLeft}
-                  onToggle={toggle}
-                  progress={progress}
-                  onEditRequest={() => setPickerVisible(true)}
-                  onResetRequest={() => reset(25)}
-                  size={260}
-                  isFullScreen={isFullScreen}
-                />
-                <TimeAdjusters
-                  presets={[15, 25, 45]}
-                  onAdjust={adjustTime}
-                  onSelectPreset={reset}
-                />
-              </View>
-              <SoundscapeSelector
-                activeSoundId={activeSoundId}
-                onSelectSound={setActiveSoundId}
-              />
-            </View>
-          </ScrollView>
-          <View style={styles.dotRow}>
-            <View style={[styles.dot, activePage === 0 && styles.activeDot]} />
-            <View style={[styles.dot, activePage === 1 && styles.activeDot]} />
-          </View>
-        </View>
-      </ScrollView>
-      <View style={styles.floatingFooter}>
-        <Surface style={styles.sliderTrack} elevation={2}>
-          <View style={styles.sliderInner}>
-            <View style={styles.sliderBackgroundTextContainer}>
-              <Text variant="labelLarge" style={styles.sliderText}>
-                Swipe to Complete
-              </Text>
-            </View>
-            <View style={styles.sliderHandle}>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={28}
-                color={theme.colors.onPrimary}
-              />
-            </View>
-          </View>
-        </Surface>
-      </View>
-    </View>
-  );
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {isLandscape ? LandscapeView : PortraitView}
+      {isLandscape ? (
+        /* 🟢 LANDSCAPE MODE (Inlined for reactive state) */
+        <View style={styles.landscapeContainer}>
+          <Stack.Screen options={{ headerShown: false }} />
+
+          {/* Wrapper to handle internal padding so the bar stays at the true screen edge */}
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingLeft: insets.left + 60,
+              paddingRight: insets.right + 20,
+            }}
+          >
+            <GestureDetector gesture={pinchGesture}>
+              <Animated.View
+                style={[
+                  styles.landscapeContent,
+                  { gap: isFullScreen ? 0 : 32 },
+                ]}
+              >
+                {/* LEFT: TIMER DIAL */}
+                <Animated.View style={animatedDialStyle}>
+                  <TimerDial
+                    displayTime={displayTime}
+                    isPlaying={isActive}
+                    secondsRemaining={secondsLeft}
+                    onToggle={toggle}
+                    progress={progress}
+                    onEditRequest={() => setPickerVisible(true)}
+                    onResetRequest={() => reset(25)}
+                    isFullScreen={isFullScreen}
+                    size={
+                      isFullScreen ? windowHeight * 0.95 : windowHeight * 0.8
+                    }
+                  />
+                </Animated.View>
+
+                {/* RIGHT: COMMAND SIDEBAR */}
+                {!isFullScreen && (
+                  <View style={styles.landscapeSidebar}>
+                    <TimeAdjusters
+                      presets={[1, 6, 12]}
+                      onAdjust={adjustTime}
+                      onSelectPreset={reset}
+                    />
+                    <SoundscapeSelector
+                      activeSoundId={activeSoundId}
+                      onSelectSound={setActiveSoundId}
+                    />
+
+                    <View style={styles.landscapeFooterWrapper}>
+                      <Surface
+                        style={styles.landscapeSliderTrack}
+                        elevation={2}
+                      >
+                        <View style={styles.sliderInner}>
+                          <View style={styles.sliderBackgroundTextContainer}>
+                            <Text
+                              variant="labelSmall"
+                              style={styles.landscapeSliderText}
+                            >
+                              DONE
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.sliderHandle,
+                              { height: 44, width: 44 },
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name="check"
+                              size={24}
+                              color={theme.colors.onPrimary}
+                            />
+                          </View>
+                        </View>
+                      </Surface>
+                    </View>
+                  </View>
+                )}
+              </Animated.View>
+            </GestureDetector>
+          </View>
+
+          {/* 🟢 FIXED PROGRESS BAR: Outside the padded wrapper and reactive */}
+          {isFullScreen && (
+            <View style={styles.screenBottomProgressContainer}>
+              <View
+                style={[
+                  styles.fullScreenProgressBar,
+                  {
+                    width: `95%`,
+                    backgroundColor: theme.colors.primaryContainer,
+                    opacity: 0.3,
+                    position: "absolute",
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.fullScreenProgressBar,
+                  {
+                    width: `${(1 - progress) * 95}%`,
+                    backgroundColor: theme.colors.primary,
+                  },
+                ]}
+              />
+            </View>
+          )}
+        </View>
+      ) : (
+        /* 🟢 PORTRAIT MODE */
+        <View style={styles.container}>
+          <Stack.Screen
+            options={{ headerShown: true, title: "Task Details" }}
+          />
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.paddedSection}>
+              <View style={styles.actionRow}>
+                <IconButton icon="pencil-outline" />
+              </View>
+            </View>
+            <View style={styles.pagerWrapper}>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={(e) =>
+                  setActivePage(
+                    Math.round(e.nativeEvent.contentOffset.x / windowWidth)
+                  )
+                }
+                scrollEventThrottle={16}
+              >
+                <View style={styles.slide}>
+                  <HeroHeader emoji="🚀" title="Task Title" category="Focus" />
+                  <StatsOverview
+                    currentStreak={12}
+                    totalCompletions={148}
+                    bestStreak={24}
+                  />
+                  <Timeline
+                    history={[true, true, true, true, true, false, true]}
+                  />
+                  <MilestoneTracker currentStreak={12} nextMilestoneGoal={15} />
+                </View>
+                <View style={styles.slide}>
+                  <View style={styles.timerSlideWrapper}>
+                    <TimerDial
+                      displayTime={displayTime}
+                      isPlaying={isActive}
+                      secondsRemaining={secondsLeft}
+                      onToggle={toggle}
+                      progress={progress}
+                      onEditRequest={() => setPickerVisible(true)}
+                      onResetRequest={() => reset(25)}
+                      size={260}
+                      isFullScreen={isFullScreen}
+                    />
+                    <TimeAdjusters
+                      presets={[15, 25, 45]}
+                      onAdjust={adjustTime}
+                      onSelectPreset={reset}
+                    />
+                  </View>
+                  <SoundscapeSelector
+                    activeSoundId={activeSoundId}
+                    onSelectSound={setActiveSoundId}
+                  />
+                </View>
+              </ScrollView>
+              <View style={styles.dotRow}>
+                <View
+                  style={[styles.dot, activePage === 0 && styles.activeDot]}
+                />
+                <View
+                  style={[styles.dot, activePage === 1 && styles.activeDot]}
+                />
+              </View>
+            </View>
+            <View style={styles.paddedSection}>
+              <View style={styles.sectionHeader}>
+                <Text variant="titleMedium" style={{ fontWeight: "bold" }}>
+                  Notes
+                </Text>
+                <IconButton icon="plus" size={20} />
+              </View>
+              <Surface style={styles.notesSurface} elevation={0}>
+                <Text variant="bodyMedium" style={styles.notesPlaceholder}>
+                  Tap to add notes...
+                </Text>
+              </Surface>
+            </View>
+          </ScrollView>
+          <View style={styles.floatingFooter}>
+            <Surface style={styles.sliderTrack} elevation={2}>
+              <View style={styles.sliderInner}>
+                <View style={styles.sliderBackgroundTextContainer}>
+                  <Text variant="labelLarge" style={styles.sliderText}>
+                    Swipe to Complete
+                  </Text>
+                </View>
+                <View style={styles.sliderHandle}>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={28}
+                    color={theme.colors.onPrimary}
+                  />
+                </View>
+              </View>
+            </Surface>
+          </View>
+        </View>
+      )}
+
+      {/* SHARED PORTAL */}
       <Portal>
         <CustomTimerPicker
           visible={pickerVisible}
@@ -347,31 +417,31 @@ const createStyles = (theme: any, windowWidth: number) =>
       alignItems: "center",
     },
 
-    // 🟢 LANDSCAPE STYLES (Fixed Spacing & Clipping)
+    // LANDSCAPE STYLES
     landscapeContainer: {
       flex: 1,
       backgroundColor: theme.colors.background,
       justifyContent: "center",
       alignItems: "center",
+      width: "100%",
+      height: "100%",
+      overflow: "visible",
     },
     landscapeContent: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       width: "100%",
-      marginRight: 100,
     },
     landscapeSidebar: {
       justifyContent: "center",
       alignItems: "center",
       gap: 12,
-      marginLeft: 60,
-      width: 300, // 🟢 Fixed width prevents the buttons from drifting
+      width: 300,
+      marginLeft: 40,
+      marginRight: 50,
     },
-    landscapeFooterWrapper: {
-      width: "100%",
-      marginTop: 8,
-    },
+    landscapeFooterWrapper: { width: "100%", marginTop: 8 },
     landscapeSliderTrack: {
       height: 54,
       borderRadius: 27,
@@ -384,4 +454,38 @@ const createStyles = (theme: any, windowWidth: number) =>
       fontSize: 10,
       letterSpacing: 1,
     },
+
+    // PROGRESS BAR STYLES
+    screenBottomProgressContainer: {
+      position: "absolute",
+      bottom: 20,
+      left: 0, // 🔵 SUGGESTION: Essential for spanning the full width
+      right: 0, // 🔵 SUGGESTION: Essential for spanning the full width
+      height: 8,
+      backgroundColor: "rgba(0,0,0,0.1)", // 🔵 SUGGESTION: Visible track
+      zIndex: 9999,
+      // overflow: "visible",
+      alignItems: "flex-start",
+      justifyContent: "center",
+      paddingLeft: "2.5%",
+    },
+    fullScreenProgressBar: {
+      height: "100%",
+      borderRadius: 4,
+    },
+    // --- Rest of Styles ---
+    sectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    notesSurface: {
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      minHeight: 120,
+    },
+    notesPlaceholder: { opacity: 0.4, fontStyle: "italic" },
   });
