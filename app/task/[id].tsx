@@ -1,21 +1,34 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, Dimensions } from "react-native";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { View, StyleSheet, ScrollView, Platform } from "react-native";
+import { useLocalSearchParams, Stack } from "expo-router";
 import {
   Text,
   IconButton,
   useTheme,
   Surface,
   Portal,
-  Modal,
 } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Audio } from "expo-av";
+import { useWindowDimensions } from "react-native"; // 🟢 Added this
+
+// 🟢 GESTURE & ANIMATION ENGINE
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+  interpolate,
+} from "react-native-reanimated";
 
 import { useTimer } from "@/hooks/useTimer";
-
 import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
 import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
 import { Timeline } from "@/components/task-detail/dashboard/Timeline";
@@ -25,13 +38,24 @@ import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
 import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSelector";
 import { CustomTimerPicker } from "@/components/CustomTimerPicker";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 export default function TaskDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const theme = useTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, windowWidth);
+  const insets = useSafeAreaInsets();
+
+  // --- STATES ---
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
+    ScreenOrientation.Orientation.PORTRAIT_UP
+  );
+  const [activePage, setActivePage] = useState(0);
+  const [activeSoundId, setActiveSoundId] = useState<string>("mute");
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  // --- ANIMATION VALUES ---
+  const scale = useSharedValue(1);
   const {
     displayTime,
     isActive,
@@ -41,38 +65,43 @@ export default function TaskDetailScreen() {
     reset,
     adjustTime,
   } = useTimer(25);
-  const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
-    ScreenOrientation.Orientation.PORTRAIT_UP
-  );
 
-  const [activePage, setActivePage] = useState(0);
-  const [activeSoundId, setActiveSoundId] = useState<string>("mute");
-  const [pickerVisible, setPickerVisible] = useState(false);
+  const isLandscape = windowWidth > windowHeight;
 
-  const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    // 1. Get initial orientation
-    ScreenOrientation.getOrientationAsync().then((o) => setOrientation(o));
-
-    // 2. Listen for changes
-    const subscription = ScreenOrientation.addOrientationChangeListener(
-      (evt) => {
-        setOrientation(evt.orientationInfo.orientation);
+  // 🟢 PINCH GESTURE: Zoom to Fullscreen
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((event) => {
+      scale.value = event.scale;
+    })
+    .onEnd((event) => {
+      if (event.scale > 1.2) {
+        runOnJS(setIsFullScreen)(true);
+      } else if (event.scale < 0.8) {
+        runOnJS(setIsFullScreen)(false);
       }
-    );
+      scale.value = withSpring(1);
+    });
 
-    return () =>
-      ScreenOrientation.removeOrientationChangeListener(subscription);
+  const animatedDialStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(isFullScreen ? 1.1 : 1) }],
+  }));
+
+  // --- EFFECTS ---
+  useEffect(() => {
+    ScreenOrientation.getOrientationAsync().then((o) => setOrientation(o));
+    const sub = ScreenOrientation.addOrientationChangeListener((evt) =>
+      setOrientation(evt.orientationInfo.orientation)
+    );
+    return () => ScreenOrientation.removeOrientationChangeListener(sub);
   }, []);
 
-  async function playSound(id: string) {
-    // 1. Unload previous sound
-    if (sound) {
-      await sound.unloadAsync();
-    }
+  useEffect(() => {
+    if (!isLandscape) setIsFullScreen(false);
+  }, [isLandscape]);
 
-    // 2. Map IDs to local files or remote URLs
+  // Audio Logic
+  async function playSound(id: string) {
+    if (sound) await sound.unloadAsync();
     const audioFiles: { [key: string]: any } = {
       rain: require("@/assets/audio/rainfall-track.mp3"),
       lofi: require("@/assets/audio/lofi-track.mp3"),
@@ -80,10 +109,7 @@ export default function TaskDetailScreen() {
       noise: require("@/assets/audio/wave-track.mp3"),
       synth: require("@/assets/audio/piano.mp3"),
     };
-
     if (id === "mute" || !audioFiles[id]) return;
-
-    // 3. Load and play
     const { sound: newSound } = await Audio.Sound.createAsync(audioFiles[id], {
       shouldPlay: true,
       isLooping: true,
@@ -98,145 +124,113 @@ export default function TaskDetailScreen() {
     };
   }, [activeSoundId]);
 
-  const isLandscape =
-    orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
-    orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
-
-  const handleScroll = (event: any) => {
-    const x = event.nativeEvent.contentOffset.x;
-    const currentIndex = Math.round(x / SCREEN_WIDTH);
-    setActivePage(currentIndex);
-  };
-
-  const MainContent = isLandscape ? (
+  // 🟢 LANDSCAPE RENDER MODE
+  const LandscapeView = (
     <View
       style={[
         styles.landscapeContainer,
-        {
-          paddingLeft: insets.left + 60,
-          paddingRight: insets.right + 20,
-          paddingTop: insets.top,
-          paddingBottom: insets.bottom,
-        },
+        { paddingLeft: insets.left + 60, paddingRight: insets.right + 20 },
       ]}
     >
       <Stack.Screen options={{ headerShown: false }} />
-      {/* Hide header in landscape */}
-      <View style={styles.landscapeContent}>
-        <TimerDial
-          displayTime={displayTime}
-          isPlaying={isActive}
-          secondsRemaining={secondsLeft}
-          onToggle={toggle}
-          progress={progress}
-          onEditRequest={() => setPickerVisible(true)}
-          onResetRequest={() => reset(25)}
-          size={Dimensions.get("window").height * 0.85} // 🟢 Make it huge!
-        />
 
-        {/* Optional: Add mini controls on the side */}
-        <View style={styles.landscapeSidebar}>
-          <TimeAdjusters
-            presets={[15, 25, 45]}
-            onAdjust={adjustTime}
-            onSelectPreset={reset}
-          />
+      <GestureDetector gesture={pinchGesture}>
+        <Animated.View
+          style={[styles.landscapeContent, { gap: isFullScreen ? 0 : 32 }]}
+        >
+          {/* LEFT: TIMER DIAL */}
+          <Animated.View style={animatedDialStyle}>
+            <TimerDial
+              displayTime={displayTime}
+              isPlaying={isActive}
+              secondsRemaining={secondsLeft}
+              onToggle={toggle}
+              progress={progress}
+              onEditRequest={() => setPickerVisible(true)}
+              onResetRequest={() => reset(25)}
+              isFullScreen={isFullScreen}
+              // Responsive scaling: 0.75 for dashboard, 0.95 for focus mode
+              size={isFullScreen ? windowHeight * 0.95 : windowHeight * 0.8}
+            />
+          </Animated.View>
 
-          <SoundscapeSelector
-            activeSoundId={activeSoundId}
-            onSelectSound={setActiveSoundId}
-          />
-          {/* 3. Complete (The Slider) */}
-          <View style={styles.landscapeFooterWrapper}>
-            <Surface style={styles.landscapeSliderTrack} elevation={2}>
-              <View style={styles.sliderInner}>
-                <View style={styles.sliderBackgroundTextContainer}>
-                  <Text variant="labelSmall" style={styles.landscapeSliderText}>
-                    DONE
-                  </Text>
-                </View>
-                <View style={[styles.sliderHandle, { height: 44, width: 44 }]}>
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={24}
-                    color={theme.colors.onPrimary}
-                  />
-                </View>
+          {/* RIGHT: COMMAND SIDEBAR */}
+          {!isFullScreen && (
+            <View style={styles.landscapeSidebar}>
+              <TimeAdjusters
+                presets={[1, 6, 12]}
+                onAdjust={adjustTime}
+                onSelectPreset={reset}
+              />
+              <SoundscapeSelector
+                activeSoundId={activeSoundId}
+                onSelectSound={setActiveSoundId}
+              />
+
+              <View style={styles.landscapeFooterWrapper}>
+                <Surface style={styles.landscapeSliderTrack} elevation={2}>
+                  <View style={styles.sliderInner}>
+                    <View style={styles.sliderBackgroundTextContainer}>
+                      <Text
+                        variant="labelSmall"
+                        style={styles.landscapeSliderText}
+                      >
+                        DONE
+                      </Text>
+                    </View>
+                    <View
+                      style={[styles.sliderHandle, { height: 44, width: 44 }]}
+                    >
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={24}
+                        color={theme.colors.onPrimary}
+                      />
+                    </View>
+                  </View>
+                </Surface>
               </View>
-            </Surface>
-          </View>
-        </View>
-      </View>
-      <Portal>
-        <CustomTimerPicker
-          visible={pickerVisible}
-          onClose={() => setPickerVisible(false)}
-          onConfirm={(seconds: number) => {
-            reset(seconds / 60); // Assuming reset takes minutes
-            setPickerVisible(false);
-          }}
-        />
-      </Portal>
+            </View>
+          )}
+        </Animated.View>
+      </GestureDetector>
     </View>
-  ) : (
+  );
+
+  // 🟢 PORTRAIT RENDER MODE
+  const PortraitView = (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: !isLandscape, // Show in Portrait, Hide in Landscape
-          title: "Task Details", // Or your dynamic title
-        }}
-      />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 1. Header (Indented) */}
+      <Stack.Screen options={{ headerShown: true, title: "Task Details" }} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.paddedSection}>
           <View style={styles.actionRow}>
-            <IconButton icon="pencil-outline" onPress={() => {}} />
+            <IconButton icon="pencil-outline" />
           </View>
         </View>
-
-        {/* --- PAGER SECTION --- */}
         <View style={styles.pagerWrapper}>
           <ScrollView
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            onScroll={handleScroll}
+            onScroll={(e) =>
+              setActivePage(
+                Math.round(e.nativeEvent.contentOffset.x / windowWidth)
+              )
+            }
             scrollEventThrottle={16}
           >
-            {/* --- SLIDE 1: THE OVERVIEW --- */}
             <View style={styles.slide}>
-              <View style={styles.overviewSlideWrapper}>
-                <HeroHeader
-                  emoji="🚀"
-                  title="Task Title"
-                  category="Health & Wellness"
-                />
-
-                {/* Stats Row */}
-                <StatsOverview
-                  currentStreak={12}
-                  totalCompletions={148}
-                  bestStreak={24}
-                />
-
-                {/* 🟢 NEW: 7-Day Timeline Section */}
-                <Timeline
-                  history={[true, true, true, true, true, false, true]}
-                />
-
-                {/* 🟢 NEW: Next Milestone Section */}
-                <MilestoneTracker currentStreak={12} nextMilestoneGoal={15} />
-              </View>
+              <HeroHeader emoji="🚀" title="Task Title" category="Focus" />
+              <StatsOverview
+                currentStreak={12}
+                totalCompletions={148}
+                bestStreak={24}
+              />
+              <Timeline history={[true, true, true, true, true, false, true]} />
+              <MilestoneTracker currentStreak={12} nextMilestoneGoal={15} />
             </View>
-
-            {/* --- SLIDE 2: THE TIMER COMMAND CENTER --- */}
             <View style={styles.slide}>
               <View style={styles.timerSlideWrapper}>
-                {/* 🟢 The Outer Dial/Ring */}
-
                 <TimerDial
                   displayTime={displayTime}
                   isPlaying={isActive}
@@ -246,51 +240,26 @@ export default function TaskDetailScreen() {
                   onEditRequest={() => setPickerVisible(true)}
                   onResetRequest={() => reset(25)}
                   size={260}
+                  isFullScreen={isFullScreen}
                 />
-
                 <TimeAdjusters
                   presets={[15, 25, 45]}
                   onAdjust={adjustTime}
                   onSelectPreset={reset}
                 />
               </View>
-              {/* 🟢 Ambient Soundscape (Bottom) */}
               <SoundscapeSelector
                 activeSoundId={activeSoundId}
-                onSelectSound={(id) => setActiveSoundId(id)}
+                onSelectSound={setActiveSoundId}
               />
             </View>
           </ScrollView>
-
-          {/* --- Pagination Dots --- */}
           <View style={styles.dotRow}>
             <View style={[styles.dot, activePage === 0 && styles.activeDot]} />
             <View style={[styles.dot, activePage === 1 && styles.activeDot]} />
           </View>
         </View>
-
-        {/* NOTES SECTION */}
-        <View style={styles.paddedSection}>
-          <View style={styles.sectionHeader}>
-            <Text variant="titleMedium" style={{ fontWeight: "bold" }}>
-              Notes
-            </Text>
-            <IconButton
-              icon="plus"
-              size={20}
-              onPress={() => console.log("Add Note")}
-            />
-          </View>
-
-          <Surface style={styles.notesSurface} elevation={0}>
-            <Text variant="bodyMedium" style={styles.notesPlaceholder}>
-              Tap to add notes about your progress, gym PRs, or reflections...
-            </Text>
-          </Surface>
-        </View>
       </ScrollView>
-
-      {/* FLOATING FOOTER PILL */}
       <View style={styles.floatingFooter}>
         <Surface style={styles.sliderTrack} elevation={2}>
           <View style={styles.sliderInner}>
@@ -309,23 +278,12 @@ export default function TaskDetailScreen() {
           </View>
         </Surface>
       </View>
-      <Portal>
-        <CustomTimerPicker
-          visible={pickerVisible}
-          onClose={() => setPickerVisible(false)}
-          onConfirm={(seconds: number) => {
-            reset(seconds); // Updates the useTimer hook state
-            setPickerVisible(false);
-          }}
-        />
-      </Portal>
     </View>
   );
 
   return (
-    <>
-      {MainContent}
-
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {isLandscape ? LandscapeView : PortraitView}
       <Portal>
         <CustomTimerPicker
           visible={pickerVisible}
@@ -336,35 +294,24 @@ export default function TaskDetailScreen() {
           }}
         />
       </Portal>
-    </>
+    </GestureHandlerRootView>
   );
 }
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, windowWidth: number) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-    scrollContent: { paddingTop: 0, paddingBottom: 150 }, // Extra padding for floating footer
-    paddedSection: { paddingHorizontal: 20, marginTop: 10 },
+    scrollContent: { paddingBottom: 120 },
+    paddedSection: { paddingHorizontal: 20 },
     actionRow: { flexDirection: "row-reverse" },
-    pagerWrapper: { height: 500 },
-    overviewSlideWrapper: { flex: 1, paddingHorizontal: 20 },
-    slide: { width: SCREEN_WIDTH, height: "100%" },
-
-    // --- Timer Slide Styles ---
+    pagerWrapper: { height: 475 },
+    slide: { height: "100%", width: windowWidth, paddingHorizontal: 20 },
     timerSlideWrapper: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 20,
-      //   backgroundColor: theme.colors.surface,
     },
-
-    // --- Navigation & Dots ---
-    dotRow: {
-      flexDirection: "row",
-      justifyContent: "center",
-      marginTop: 20,
-    },
+    dotRow: { flexDirection: "row", justifyContent: "center", marginTop: 20 },
     dot: {
       width: 6,
       height: 6,
@@ -372,55 +319,15 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.outlineVariant,
       marginHorizontal: 4,
     },
-    activeDot: {
-      backgroundColor: theme.colors.primary,
-      width: 16,
-    },
-
-    // --- Rest of Styles ---
-    sectionHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 8,
-    },
-    notesSurface: {
-      padding: 16,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: theme.colors.outlineVariant,
-      minHeight: 120,
-    },
-    notesPlaceholder: { opacity: 0.4, fontStyle: "italic" },
-
-    // FLOATING PILL FOOTER
-    floatingFooter: {
-      position: "absolute",
-      bottom: 20, // Floating above the bottom edge
-      left: 20,
-      right: 20,
-      alignItems: "center",
-    },
+    activeDot: { backgroundColor: theme.colors.primary, width: 16 },
+    floatingFooter: { position: "absolute", bottom: 20, left: 20, right: 20 },
     sliderTrack: {
-      width: "100%",
       height: 64,
       borderRadius: 32,
       backgroundColor: theme.colors.surface,
-      //   flexDirection: "row",
-      //   alignItems: "center",
-      padding: 6, // Padding for the handle
-      //   overflow: "hidden",
-      borderWidth: 1,
-      borderColor: "rgba(0,0,0,0.05)",
-    },
-    sliderInner: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
       padding: 6,
-      borderRadius: 32, // Match the parent
-      overflow: "hidden", // 🟢 CLIPPING HAPPENS HERE
     },
+    sliderInner: { flex: 1, flexDirection: "row", alignItems: "center" },
     sliderBackgroundTextContainer: {
       ...StyleSheet.absoluteFillObject,
       justifyContent: "center",
@@ -430,7 +337,6 @@ const createStyles = (theme: any) =>
       opacity: 0.3,
       fontWeight: "bold",
       textTransform: "uppercase",
-      letterSpacing: 1,
     },
     sliderHandle: {
       width: 52,
@@ -439,52 +345,43 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.primary,
       justifyContent: "center",
       alignItems: "center",
-      elevation: 4,
-      shadowColor: theme.colors.primary,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
     },
 
-    // landscape styles
+    // 🟢 LANDSCAPE STYLES (Fixed Spacing & Clipping)
     landscapeContainer: {
       flex: 1,
       backgroundColor: theme.colors.background,
       justifyContent: "center",
       alignItems: "center",
-      // paddingHorizontal: 80,
     },
     landscapeContent: {
-      flexDirection: "row", // Dial on left, sounds on right
+      flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       width: "100%",
-      // gap: 0,
-      // paddingHorizontal: 50,
+      marginRight: 100,
     },
     landscapeSidebar: {
       justifyContent: "center",
       alignItems: "center",
       gap: 12,
+      marginLeft: 60,
+      width: 300, // 🟢 Fixed width prevents the buttons from drifting
     },
     landscapeFooterWrapper: {
-      width: 300, // Slightly wider for better swipe feel
-      marginTop: 15,
+      width: "100%",
+      marginTop: 8,
     },
     landscapeSliderTrack: {
-      width: "100%",
-      height: 54, // Slightly slimmer for landscape
+      height: 54,
       borderRadius: 27,
       backgroundColor: theme.colors.surface,
       padding: 4,
-      borderWidth: 1,
-      borderColor: "rgba(0,0,0,0.05)",
     },
     landscapeSliderText: {
       opacity: 0.4,
       fontWeight: "900",
       fontSize: 10,
-      textTransform: "uppercase",
-      letterSpacing: 2,
+      letterSpacing: 1,
     },
   });
