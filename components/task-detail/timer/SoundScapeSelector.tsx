@@ -18,6 +18,7 @@ const SOUNDS: Sound[] = [
   { id: "lofi", icon: "cassette" },
   { id: "forest", icon: "tree" },
   { id: "noise", icon: "waves" },
+  { id: "synth", icon: "piano" },
 ];
 
 export const SoundscapeSelector = ({

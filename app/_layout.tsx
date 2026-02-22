@@ -10,12 +10,25 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { PaperProvider } from "react-native-paper"; // Import this if you haven't
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "../lib/theme-context";
+import { Audio } from "expo-av";
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   // const isAuth = false;
   const { user, isLoadingUser } = useAuth();
   const segments = useSegments();
+
+  useEffect(() => {
+    async function setupAudio() {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true, // 🟢 Sound plays even on silent switch
+        staysActiveInBackground: true, // 🟢 Keeps music going when app is minimized
+        shouldDuckAndroid: true, // 🟢 Lowers volume when a notification comes in
+        interruptionModeIOS: 1, // Do not mix with other apps (standard for music)
+      });
+    }
+    setupAudio();
+  }, []);
 
   useEffect(() => {
     // check if user is already in auth page
