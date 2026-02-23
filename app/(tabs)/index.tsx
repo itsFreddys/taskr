@@ -12,6 +12,7 @@ import { ScheduleTab } from "@/components/task-list/ScheduleTab";
 // --- Logic, Types & Services ---
 import { useAuth } from "@/lib/auth-context";
 import { useStreaksLogic } from "@/hooks/useStreaksLogic";
+import { usePortraitLock } from "@/hooks/usePortraitLock";
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = width / 6;
@@ -21,6 +22,7 @@ const Tab = createMaterialTopTabNavigator();
 export default function Index() {
   const { user } = useAuth();
   const theme = useTheme();
+  usePortraitLock();
 
   const {
     dailyTasks,

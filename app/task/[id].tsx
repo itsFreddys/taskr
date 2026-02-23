@@ -34,6 +34,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { useTimer } from "@/hooks/useTimer";
+import { useAllowRotation } from "@/hooks/useAllowRotation";
 import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
 import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
 import { Timeline } from "@/components/task-detail/dashboard/Timeline";
@@ -47,6 +48,7 @@ export default function TaskDetailScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const theme = useTheme();
   const styles = createStyles(theme, windowWidth);
+  useAllowRotation();
   const insets = useSafeAreaInsets();
 
   // --- STATES ---
