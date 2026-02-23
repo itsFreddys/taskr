@@ -155,7 +155,18 @@ export default function TaskDetailScreen() {
                 ]}
               >
                 {/* LEFT: TIMER DIAL */}
-                <Animated.View style={animatedDialStyle}>
+                <Animated.View
+                  style={[
+                    animatedDialStyle,
+                    {
+                      flex: 1,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      // 🔵 SUGGESTION: Remove any fixed margins when in full screen to ensure true centering
+                      marginLeft: isFullScreen ? 0 : 0,
+                    },
+                  ]}
+                >
                   <TimerDial
                     displayTime={displayTime}
                     isPlaying={isActive}
@@ -230,6 +241,7 @@ export default function TaskDetailScreen() {
                     backgroundColor: theme.colors.primaryContainer,
                     opacity: 0.3,
                     position: "absolute",
+                    left: "2.5%",
                   },
                 ]}
               />
@@ -239,6 +251,7 @@ export default function TaskDetailScreen() {
                   {
                     width: `${(1 - progress) * 95}%`,
                     backgroundColor: theme.colors.primary,
+                    // left: "2.5%",
                   },
                 ]}
               />
@@ -432,6 +445,7 @@ const createStyles = (theme: any, windowWidth: number) =>
       alignItems: "center",
       justifyContent: "center",
       width: "100%",
+      flex: 1,
     },
     landscapeSidebar: {
       justifyContent: "center",
@@ -439,7 +453,7 @@ const createStyles = (theme: any, windowWidth: number) =>
       gap: 12,
       width: 300,
       marginLeft: 40,
-      marginRight: 50,
+      // marginRight: 50,
     },
     landscapeFooterWrapper: { width: "100%", marginTop: 8 },
     landscapeSliderTrack: {
