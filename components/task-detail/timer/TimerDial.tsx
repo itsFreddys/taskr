@@ -2,6 +2,16 @@ import { useState, useEffect } from "react";
 import { View, StyleSheet, Pressable, Dimensions } from "react-native";
 import { Text, Button, useTheme } from "react-native-paper";
 import Svg, { Circle } from "react-native-svg";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+  useDerivedValue,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -11,6 +21,7 @@ interface TimerDialProps {
   isPlaying: boolean;
   isFullScreen: boolean;
   onToggle: () => void;
+  onCompleteTask?: () => void;
   progress: number;
   onEditRequest: () => void;
   onResetRequest: () => void;
@@ -23,6 +34,7 @@ export const TimerDial = ({
   isPlaying,
   isFullScreen,
   onToggle,
+  onCompleteTask,
   onEditRequest,
   onResetRequest,
   size = 260,
@@ -31,6 +43,10 @@ export const TimerDial = ({
   const theme = useTheme();
   const styles = createStyles(theme);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const COMPLETION_THRESHOLD = 140;
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -57,8 +73,47 @@ export const TimerDial = ({
   const containerWidth = isFullScreen ? SCREEN_WIDTH * 0.8 : size;
   const timerFontSize = isFullScreen ? 160 : size * 0.28;
 
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      // 🔵 SUGGESTION: Only allow the drag in Focus Mode to prevent accidental portrait triggers
+      if (isFullScreen) {
+        translateX.value = event.translationX;
+        translateY.value = event.translationY;
+      }
+    })
+    .onEnd((event) => {
+      if (isFullScreen && event.translationY < -COMPLETION_THRESHOLD) {
+        if (onCompleteTask) runOnJS(onCompleteTask)();
+      }
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+    });
+
+  const animatedJoystickStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
+  // 🔵 SUGGESTION: Visual feedback for the "Barrier"
+  const barrierStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateY.value,
+      [-COMPLETION_THRESHOLD + 20, -30],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    return { opacity };
+  });
+
   return (
-    <View style={[styles.container, { width: containerWidth, height: size }]}>
+    <View
+      style={[
+        styles.container,
+        { width: containerWidth, height: size, overflow: "visible" },
+      ]}
+    >
       {/* 🟢 The SVG Ring (Hidden in Full Screen to prevent clipping) */}
       {!isFullScreen && (
         <View style={styles.svgWrapper}>
@@ -119,18 +174,35 @@ export const TimerDial = ({
           </Text>
         </Pressable>
 
-        <Button
-          mode="contained"
-          style={[
-            styles.dialPlayButton,
-            isFullScreen && { transform: [{ scale: 1.2 }], marginTop: 20 },
-          ]}
-          icon={isPlaying ? "pause" : "play"}
-          onPress={onToggle}
-        >
-          {isPlaying ? "Pause" : "Start"}
-        </Button>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[animatedJoystickStyle, isFullScreen && { marginTop: 20 }]}
+          >
+            <Button
+              mode="contained"
+              style={[
+                styles.dialPlayButton,
+                isFullScreen && {
+                  transform: [{ scale: 1.2 }],
+                  paddingHorizontal: 20,
+                },
+              ]}
+              icon={isPlaying ? "pause" : "play"}
+              onPress={onToggle}
+            >
+              {isPlaying ? "Pause" : "Start"}
+            </Button>
+          </Animated.View>
+        </GestureDetector>
       </View>
+      {isFullScreen && (
+        <Animated.View style={[styles.completionBarrier, barrierStyle]}>
+          <View style={styles.barrierLine} />
+          <Text variant="labelSmall" style={styles.barrierText}>
+            RELEASE TO COMPLETE
+          </Text>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -140,6 +212,7 @@ const createStyles = (theme: any) =>
     container: {
       justifyContent: "center",
       alignItems: "center",
+      overflow: "visible",
     },
     svgWrapper: {
       position: "absolute",
@@ -167,5 +240,26 @@ const createStyles = (theme: any) =>
       borderRadius: 20,
       paddingHorizontal: 15,
       // opacity: 0.8,
+    },
+    completionBarrier: {
+      position: "absolute",
+      bottom: 160,
+      width: SCREEN_WIDTH * 0.7,
+      alignItems: "center",
+      zIndex: 1000,
+    },
+    barrierLine: {
+      width: "100%",
+      height: 2,
+      backgroundColor: "lime",
+      borderStyle: "dashed",
+      borderRadius: 1,
+      opacity: 0.8,
+    },
+    barrierText: {
+      color: "lime",
+      marginTop: 8,
+      fontWeight: "900",
+      letterSpacing: 2,
     },
   });

@@ -174,6 +174,9 @@ export default function TaskDetailScreen() {
                     isPlaying={isActive}
                     secondsRemaining={secondsLeft}
                     onToggle={toggle}
+                    onCompleteTask={() => {
+                      console.log("completed");
+                    }}
                     progress={progress}
                     onEditRequest={() => setPickerVisible(true)}
                     onResetRequest={() => reset(25)}
@@ -306,6 +309,9 @@ export default function TaskDetailScreen() {
                       isPlaying={isActive}
                       secondsRemaining={secondsLeft}
                       onToggle={toggle}
+                      onCompleteTask={() => {
+                        console.log("completed");
+                      }}
                       progress={progress}
                       onEditRequest={() => setPickerVisible(true)}
                       onResetRequest={() => reset(25)}
