@@ -50,6 +50,7 @@ export default function TaskDetailScreen() {
   const styles = createStyles(theme, windowWidth);
   useAllowRotation();
   const insets = useSafeAreaInsets();
+  const horizontalPadding = Math.max(insets.left, insets.right) + 20;
 
   // --- STATES ---
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -135,7 +136,12 @@ export default function TaskDetailScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       {isLandscape ? (
         /* 🟢 LANDSCAPE MODE (Inlined for reactive state) */
-        <View style={styles.landscapeContainer}>
+        <View
+          style={[
+            styles.landscapeContainer,
+            { paddingHorizontal: horizontalPadding },
+          ]}
+        >
           <Stack.Screen options={{ headerShown: false }} />
 
           {/* Wrapper to handle internal padding so the bar stays at the true screen edge */}
@@ -145,8 +151,10 @@ export default function TaskDetailScreen() {
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              paddingLeft: insets.left + 60,
-              paddingRight: insets.right + 20,
+              paddingLeft: horizontalPadding,
+              paddingRight: horizontalPadding,
+              // paddingLeft: insets.left + 60,
+              // paddingRight: insets.right + 20,
             }}
           >
             <GestureDetector gesture={pinchGesture}>
@@ -460,7 +468,8 @@ const createStyles = (theme: any, windowWidth: number) =>
       alignItems: "center",
       gap: 12,
       width: 300,
-      marginLeft: 40,
+      marginLeft: 100,
+      marginRight: -60,
       // marginRight: 50,
     },
     landscapeFooterWrapper: { width: "100%", marginTop: 8 },
@@ -485,7 +494,7 @@ const createStyles = (theme: any, windowWidth: number) =>
       right: 0, // 🔵 SUGGESTION: Essential for spanning the full width
       height: 8,
       backgroundColor: "rgba(0,0,0,0.1)", // 🔵 SUGGESTION: Visible track
-      zIndex: 9999,
+      zIndex: 1,
       // overflow: "visible",
       alignItems: "flex-start",
       justifyContent: "center",

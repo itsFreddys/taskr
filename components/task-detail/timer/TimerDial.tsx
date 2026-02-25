@@ -2,15 +2,21 @@ import { useState, useEffect } from "react";
 import { View, StyleSheet, Pressable, Dimensions } from "react-native";
 import { Text, Button, useTheme } from "react-native-paper";
 import Svg, { Circle } from "react-native-svg";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient"; // 🟢 Pro visual
+import * as Haptics from "expo-haptics"; // 🟢 Pro tactile
+// import { BlurView } from 'expo-blur';
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   runOnJS,
-  useDerivedValue,
   interpolate,
   Extrapolation,
+  withRepeat,
+  withSequence,
+  withTiming,
 } from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -46,7 +52,10 @@ export const TimerDial = ({
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
-  const COMPLETION_THRESHOLD = 140;
+  const X_THRESHOLD = 150;
+  const shakeX = useSharedValue(0);
+  const isReady = useSharedValue(false);
+  const snapOffset = useSharedValue(0);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -71,41 +80,92 @@ export const TimerDial = ({
   // 🟢 DYNAMIC SIZING LOGIC
   // In FullScreen, we want the text to be able to take up almost the whole screen width
   const containerWidth = isFullScreen ? SCREEN_WIDTH * 0.8 : size;
-  const timerFontSize = isFullScreen ? 160 : size * 0.28;
+  const timerFontSize = isFullScreen ? 160 : size * 0.24;
 
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
-      // 🔵 SUGGESTION: Only allow the drag in Focus Mode to prevent accidental portrait triggers
-      if (isFullScreen) {
-        translateX.value = event.translationX;
-        translateY.value = event.translationY;
+      if (!isFullScreen) return;
+      translateX.value = event.translationX;
+      translateY.value = event.translationY;
+
+      // 🟢 SNAP LOGIC: If we cross the threshold, "click" into the groove
+      if (Math.abs(event.translationX) > X_THRESHOLD) {
+        if (!isReady.value) {
+          isReady.value = true;
+          snapOffset.value = withSpring(30); // 🟢 The "Snap" jump distance
+          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+        }
+      } else {
+        isReady.value = false;
+        snapOffset.value = withSpring(0); // 🔴 Slide back if they retreat
       }
     })
     .onEnd((event) => {
-      if (isFullScreen && event.translationY < -COMPLETION_THRESHOLD) {
-        if (onCompleteTask) runOnJS(onCompleteTask)();
-      }
+      // ... your completion logic ...
+      isReady.value = false;
+      snapOffset.value = 0;
       translateX.value = withSpring(0);
       translateY.value = withSpring(0);
     });
 
-  const animatedJoystickStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-    ],
+  // 🟢 NEW: Shake Styles for the Icons
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }],
   }));
 
-  // 🔵 SUGGESTION: Visual feedback for the "Barrier"
-  const barrierStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      translateY.value,
-      [-COMPLETION_THRESHOLD + 20, -30],
-      [1, 0],
+  const animatedJoystickStyle = useAnimatedStyle(() => {
+    // 🟢 Rubber Banding on X axis
+    const dampedX = translateX.value / (1 + Math.abs(translateX.value) * 0.002);
+    const dampedY = translateY.value / (1 + Math.abs(translateY.value) * 0.005);
+    return {
+      transform: [
+        { translateX: dampedX },
+        { translateY: dampedY },
+        { scale: isFullScreen ? withSpring(1.2) : 1 },
+      ],
+    };
+  });
+
+  const rightPanelStyle = useAnimatedStyle(() => {
+    const baseWidth = interpolate(
+      translateX.value,
+      [0, X_THRESHOLD],
+      [0, 150],
       Extrapolation.CLAMP
     );
-    return { opacity };
+    return {
+      width: baseWidth + snapOffset.value, // 🟢 Base drag + the magnetic snap
+      opacity: interpolate(
+        translateX.value,
+        [0, X_THRESHOLD],
+        [0, 1],
+        Extrapolation.CLAMP
+      ),
+    };
   });
+
+  const leftPanelStyle = useAnimatedStyle(() => {
+    const baseWidth = interpolate(
+      translateX.value,
+      [0, -X_THRESHOLD],
+      [0, 150],
+      Extrapolation.CLAMP
+    );
+    return {
+      width: baseWidth + snapOffset.value, // 🟢 Works for both sides!
+      opacity: interpolate(
+        translateX.value,
+        [0, -X_THRESHOLD],
+        [0, 1],
+        Extrapolation.CLAMP
+      ),
+    };
+  });
+
+  const iconSnapStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(isReady.value ? 1.2 : 1) }],
+    opacity: withTiming(isReady.value ? 1 : 0.7),
+  }));
 
   return (
     <View
@@ -147,7 +207,7 @@ export const TimerDial = ({
       <View style={[styles.dialInternalContent, { width: containerWidth }]}>
         <Text
           variant="labelLarge"
-          style={[styles.timerSubtitle, { fontSize: isFullScreen ? 20 : 12 }]}
+          style={[styles.timerSubtitle, { fontSize: isFullScreen ? 20 : 14 }]}
         >
           Finishes at {finishTimeStr}
         </Text>
@@ -183,7 +243,7 @@ export const TimerDial = ({
               style={[
                 styles.dialPlayButton,
                 isFullScreen && {
-                  transform: [{ scale: 1.2 }],
+                  transform: [{ scale: 1.1 }],
                   paddingHorizontal: 20,
                 },
               ]}
@@ -195,12 +255,32 @@ export const TimerDial = ({
           </Animated.View>
         </GestureDetector>
       </View>
+
+      {/* 🔴 RESET PANEL (Left) */}
       {isFullScreen && (
-        <Animated.View style={[styles.completionBarrier, barrierStyle]}>
-          <View style={styles.barrierLine} />
-          <Text variant="labelSmall" style={styles.barrierText}>
-            RELEASE TO COMPLETE
-          </Text>
+        <Animated.View
+          style={[styles.sidePanel, styles.leftSidePanel, leftPanelStyle]}
+        >
+          <Animated.View
+            style={[styles.contentWrapperLeft, shakeStyle, iconSnapStyle]}
+          >
+            <MaterialCommunityIcons name="refresh" size={32} color="white" />
+            <Text style={styles.panelText}>RESET</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
+
+      {/* 🟢 COMPLETE PANEL (Right) */}
+      {isFullScreen && (
+        <Animated.View
+          style={[styles.sidePanel, styles.rightSidePanel, rightPanelStyle]}
+        >
+          <Animated.View
+            style={[styles.contentWrapperRight, shakeStyle, iconSnapStyle]}
+          >
+            <MaterialCommunityIcons name="check-bold" size={32} color="white" />
+            <Text style={styles.panelText}>COMPLETE</Text>
+          </Animated.View>
         </Animated.View>
       )}
     </View>
@@ -212,6 +292,7 @@ const createStyles = (theme: any) =>
     container: {
       justifyContent: "center",
       alignItems: "center",
+      alignSelf: "center",
       overflow: "visible",
     },
     svgWrapper: {
@@ -220,6 +301,7 @@ const createStyles = (theme: any) =>
     dialInternalContent: {
       alignItems: "center",
       justifyContent: "center",
+      width: "100%",
     },
     timerSubtitle: {
       fontWeight: "bold",
@@ -227,7 +309,7 @@ const createStyles = (theme: any) =>
       letterSpacing: 1,
       color: theme.colors.primary,
       opacity: 0.7,
-      marginBottom: 5,
+      marginBottom: 0,
     },
     largeTimerDisplay: {
       fontWeight: "400", // 🟢 Thin looks more "Pro" when very large
@@ -237,8 +319,10 @@ const createStyles = (theme: any) =>
     },
     dialPlayButton: {
       marginTop: 10,
+      marginBottom: 20,
       borderRadius: 20,
       paddingHorizontal: 15,
+      zIndex: 10,
       // opacity: 0.8,
     },
     completionBarrier: {
@@ -256,10 +340,67 @@ const createStyles = (theme: any) =>
       borderRadius: 1,
       opacity: 0.8,
     },
+    // barrierText: {
+    //   color: "lime",
+    //   marginTop: 8,
+    //   fontWeight: "900",
+    //   letterSpacing: 2,
+    // },
+    horizontalBarrier: {
+      position: "absolute",
+      alignItems: "center",
+      justifyContent: "center",
+      width: 100,
+    },
+    rightSide: { right: -60 }, // 🟢 Offset to the right
+    leftSide: { left: -60 }, // 🔴 Offset to the left
     barrierText: {
-      color: "lime",
-      marginTop: 8,
+      fontSize: 10,
       fontWeight: "900",
-      letterSpacing: 2,
+      marginTop: 4,
+      letterSpacing: 1,
+    },
+    sidePanel: {
+      position: "absolute",
+      height: 100, // 🔵 Height of the "drawer"
+      top: "50%",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: -1, // 🟢 Sits behind the button
+      overflow: "hidden",
+    },
+    rightSidePanel: {
+      right: -50, // 🟢 Starts just off-center to the right
+      backgroundColor: "rgba(0, 200, 80, 0.5)", // Semi-transparent green
+      borderTopLeftRadius: 50,
+      borderBottomLeftRadius: 50,
+      // paddingLeft: 20,
+    },
+    leftSidePanel: {
+      left: -50, // 🟢 Starts just off-center to the left
+      backgroundColor: "rgba(255, 100, 0, 0.5)", // Semi-transparent orange
+      borderTopRightRadius: 50,
+      borderBottomRightRadius: 50,
+      // paddingRight: 20,
+    },
+    panelText: {
+      color: "white",
+      fontSize: 10,
+      fontWeight: "900",
+      marginTop: 4,
+      textAlign: "center",
+      width: 100,
+    },
+    contentWrapperRight: {
+      width: 120,
+      position: "absolute",
+      left: 20,
+      alignItems: "center",
+    },
+    contentWrapperLeft: {
+      width: 120,
+      position: "absolute",
+      right: 20,
+      alignItems: "center",
     },
   });
