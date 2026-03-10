@@ -144,6 +144,32 @@ export const TimerDial = ({
     transform: [{ translateX: shakeX.value }],
   }));
 
+  const animatedTimerTextStyle = useAnimatedStyle(() => {
+    // We want the blur/fade to start early (at 20px) and finish before the threshold (120px)
+    const absX = Math.abs(translateX.value);
+
+    const opacity = interpolate(
+      absX,
+      [0, 100],
+      [1, 0.3], // Dim the numbers to 30%
+      Extrapolation.CLAMP
+    );
+
+    const scale = interpolate(
+      absX,
+      [0, 100],
+      [1, 0.9], // Slightly shrink the numbers
+      Extrapolation.CLAMP
+    );
+
+    return {
+      opacity,
+      transform: [{ scale }],
+      // Note: blurRadius is iOS only on standard <Text>.
+      // For Android/Universal, the opacity/scale combo creates the "receding" feel.
+    };
+  });
+
   const animatedJoystickStyle = useAnimatedStyle(() => {
     // 🟢 Rubber Banding on X axis
     const dampedX = translateX.value / (1 + Math.abs(translateX.value) * 0.002);
@@ -251,13 +277,14 @@ export const TimerDial = ({
           onPress={onEditRequest}
           onLongPress={onResetRequest}
           delayLongPress={500}
-          style={{ width: "100%" }} // Ensure pressable fills the container for centering
+          style={{ width: "100%" }}
         >
-          <Text
-            numberOfLines={1} // 🟢 Prevent wrapping
-            adjustsFontSizeToFit // 🟢 Shrink text if it hits the edges
+          <Animated.Text // 🟢 Changed from Text to Animated.Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
             style={[
               styles.largeTimerDisplay,
+              animatedTimerTextStyle, // 🟢 Added the focus style here
               {
                 fontSize: timerFontSize,
                 textAlign: "center",
@@ -266,7 +293,7 @@ export const TimerDial = ({
             ]}
           >
             {displayTime}
-          </Text>
+          </Animated.Text>
         </Pressable>
 
         <GestureDetector gesture={panGesture}>
