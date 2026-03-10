@@ -20,6 +20,15 @@ import Animated, {
 } from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const isToday = (date: Date) => {
+  const today = new Date();
+  // console.log(`today: ${today}, taskDate: ${date}`);
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+};
 
 interface TimerDialProps {
   displayTime: string;
@@ -32,6 +41,7 @@ interface TimerDialProps {
   onEditRequest: () => void;
   onResetRequest: () => void;
   size: number;
+  taskDate: Date;
 }
 
 export const TimerDial = ({
@@ -43,12 +53,14 @@ export const TimerDial = ({
   onCompleteTask,
   onEditRequest,
   onResetRequest,
+  taskDate,
   size = 260,
   progress = 0,
 }: TimerDialProps) => {
   const theme = useTheme();
   const styles = createStyles(theme);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const canComplete = isToday(taskDate);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -79,33 +91,52 @@ export const TimerDial = ({
 
   // 🟢 DYNAMIC SIZING LOGIC
   // In FullScreen, we want the text to be able to take up almost the whole screen width
-  const containerWidth = isFullScreen ? SCREEN_WIDTH * 0.8 : size;
+  // const containerWidth = isFullScreen ? SCREEN_WIDTH * 0.8 : size;
+  const containerWidth = isFullScreen ? SCREEN_WIDTH : size;
   const timerFontSize = isFullScreen ? 160 : size * 0.24;
+  const hasTriggeredHaptic = useSharedValue(false); // 🟢 Throttle haptics
 
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
       if (!isFullScreen) return;
+
       translateX.value = event.translationX;
       translateY.value = event.translationY;
 
-      // 🟢 SNAP LOGIC: If we cross the threshold, "click" into the groove
-      if (Math.abs(event.translationX) > X_THRESHOLD) {
-        if (!isReady.value) {
-          isReady.value = true;
-          snapOffset.value = withSpring(30); // 🟢 The "Snap" jump distance
-          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-        }
-      } else {
+      const pastThreshold = Math.abs(translateX.value) > X_THRESHOLD;
+
+      if (pastThreshold && !hasTriggeredHaptic.value) {
+        // 🟢 Only fire haptic ONCE per crossing, not every frame
+        hasTriggeredHaptic.value = true;
+        isReady.value = true;
+        snapOffset.value = withSpring(5, { damping: 15 });
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+      } else if (!pastThreshold) {
+        // 🟢 Reset when pulled back inside threshold
+        hasTriggeredHaptic.value = false;
         isReady.value = false;
-        snapOffset.value = withSpring(0); // 🔴 Slide back if they retreat
+        snapOffset.value = withSpring(0);
       }
     })
     .onEnd((event) => {
-      // ... your completion logic ...
-      isReady.value = false;
-      snapOffset.value = 0;
+      if (!isFullScreen) return;
+
+      // 🟢 Trigger actions
+      if (isReady.value) {
+        if (event.translationX > X_THRESHOLD) {
+          if (canComplete) runOnJS(onCompleteTask!)();
+          else console.log("tried to complete on incorrect day");
+        } else if (event.translationX < -X_THRESHOLD) {
+          runOnJS(onResetRequest)();
+        }
+      }
+
+      // 🟢 Always spring back to neutral
       translateX.value = withSpring(0);
       translateY.value = withSpring(0);
+      isReady.value = false;
+      snapOffset.value = withSpring(0);
+      hasTriggeredHaptic.value = false;
     });
 
   // 🟢 NEW: Shake Styles for the Icons
@@ -130,17 +161,20 @@ export const TimerDial = ({
     const baseWidth = interpolate(
       translateX.value,
       [0, X_THRESHOLD],
-      [0, 150],
+      [0, 200],
+      // [0, 150],
+      Extrapolation.CLAMP
+    );
+    const baseOpacity = interpolate(
+      translateX.value,
+      [20, 100],
+      [0, 1],
       Extrapolation.CLAMP
     );
     return {
-      width: baseWidth + snapOffset.value, // 🟢 Base drag + the magnetic snap
-      opacity: interpolate(
-        translateX.value,
-        [0, X_THRESHOLD],
-        [0, 1],
-        Extrapolation.CLAMP
-      ),
+      width: baseWidth + snapOffset.value,
+      // 🟢 If locked, cap opacity at 0.3 so it fades in grey rather than full color
+      opacity: canComplete ? baseOpacity : baseOpacity * 0.3,
     };
   });
 
@@ -148,7 +182,8 @@ export const TimerDial = ({
     const baseWidth = interpolate(
       translateX.value,
       [0, -X_THRESHOLD],
-      [0, 150],
+      [0, 200],
+      // [0, 150],
       Extrapolation.CLAMP
     );
     return {
@@ -273,13 +308,28 @@ export const TimerDial = ({
       {/* 🟢 COMPLETE PANEL (Right) */}
       {isFullScreen && (
         <Animated.View
-          style={[styles.sidePanel, styles.rightSidePanel, rightPanelStyle]}
+          style={[
+            styles.sidePanel,
+            styles.rightSidePanel,
+            {
+              backgroundColor: canComplete
+                ? "rgba(0, 200, 80, 0.5)"
+                : "rgba(150, 150, 150, 0.5)",
+            },
+            rightPanelStyle,
+          ]}
         >
           <Animated.View
             style={[styles.contentWrapperRight, shakeStyle, iconSnapStyle]}
           >
-            <MaterialCommunityIcons name="check-bold" size={32} color="white" />
-            <Text style={styles.panelText}>COMPLETE</Text>
+            <MaterialCommunityIcons
+              name={canComplete ? "check-bold" : "lock-outline"}
+              size={32}
+              color="white"
+            />
+            <Text style={styles.panelText}>
+              {canComplete ? "COMPLETE" : "LOCKED"}
+            </Text>
           </Animated.View>
         </Animated.View>
       )}
@@ -370,14 +420,16 @@ const createStyles = (theme: any) =>
       overflow: "hidden",
     },
     rightSidePanel: {
-      right: -50, // 🟢 Starts just off-center to the right
+      right: 0,
+      // right: -50,
       backgroundColor: "rgba(0, 200, 80, 0.5)", // Semi-transparent green
       borderTopLeftRadius: 50,
       borderBottomLeftRadius: 50,
       // paddingLeft: 20,
     },
     leftSidePanel: {
-      left: -50, // 🟢 Starts just off-center to the left
+      left: 0,
+      // left: -50,
       backgroundColor: "rgba(255, 100, 0, 0.5)", // Semi-transparent orange
       borderTopRightRadius: 50,
       borderBottomRightRadius: 50,

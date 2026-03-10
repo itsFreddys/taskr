@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { TaskService } from "@/services/taskService";
+import { Task } from "@/types/database.type";
 import {
   View,
   StyleSheet,
@@ -19,6 +21,8 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Audio } from "expo-av";
 import { useWindowDimensions } from "react-native";
+import { isSameDay } from "date-fns";
+import * as Haptics from "expo-haptics";
 
 // GESTURE & ANIMATION ENGINE
 import {
@@ -45,10 +49,62 @@ import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSel
 import { CustomTimerPicker } from "@/components/CustomTimerPicker";
 
 export default function TaskDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [task, setTask] = useState<Task | null>(null);
+  useAllowRotation();
+
+  useEffect(() => {
+    if (id) {
+      TaskService.getTaskById(id)
+        .then(setTask)
+        .catch((err: Error) => console.error("Load Task Error:", err));
+    }
+  }, [id]);
+
+  const canCompleteToday = useMemo(() => {
+    if (!task) return false;
+
+    const now = new Date();
+    const dayIndex = now.getDay().toString();
+
+    // Exception: Manually added to today
+    const isAdHocMatch =
+      task.adHocDate && isSameDay(new Date(task.adHocDate), now);
+
+    // Rule: Matches standard schedule
+    const isScheduledMatch =
+      task.type === "one-time"
+        ? task.startDate && isSameDay(new Date(task.startDate), now)
+        : task.daysOfWeek?.includes(dayIndex);
+
+    // 🔵 Check if already completed today to prevent double-dipping
+    const isAlreadyDone =
+      task.lastCompletedDate &&
+      isSameDay(new Date(task.lastCompletedDate), now);
+
+    return (isAdHocMatch || isScheduledMatch) && !isAlreadyDone;
+  }, [task]);
+
+  const handleTaskCompletion = async () => {
+    if (!task) return;
+    try {
+      // Instead of just setting "completed: true", we use the streak logic
+      // from your handleToggleTask function
+      await TaskService.completeTask(task);
+
+      // Optional: Refresh local task state to show "LOCKED" after completion
+      const updated = await TaskService.getTaskById(id!);
+      setTask(updated);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error("Completion failed", err);
+    }
+  };
+
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const theme = useTheme();
   const styles = createStyles(theme, windowWidth);
-  useAllowRotation();
   const insets = useSafeAreaInsets();
   const horizontalPadding = Math.max(insets.left, insets.right) + 20;
 
@@ -183,8 +239,10 @@ export default function TaskDetailScreen() {
                     secondsRemaining={secondsLeft}
                     onToggle={toggle}
                     onCompleteTask={() => {
-                      console.log("completed");
+                      console.log("completed", { id });
+                      //handleTaskCompletion
                     }}
+                    taskDate={canCompleteToday ? new Date() : new Date(0)}
                     progress={progress}
                     onEditRequest={() => setPickerVisible(true)}
                     onResetRequest={() => reset(25)}
@@ -318,8 +376,10 @@ export default function TaskDetailScreen() {
                       secondsRemaining={secondsLeft}
                       onToggle={toggle}
                       onCompleteTask={() => {
-                        console.log("completed");
+                        console.log("completed", { id });
+                        //handleTaskCompletion
                       }}
+                      taskDate={canCompleteToday ? new Date() : new Date(0)}
                       progress={progress}
                       onEditRequest={() => setPickerVisible(true)}
                       onResetRequest={() => reset(25)}
