@@ -144,14 +144,13 @@ export const TimerDial = ({
     transform: [{ translateX: shakeX.value }],
   }));
 
-  const animatedTimerTextStyle = useAnimatedStyle(() => {
-    // We want the blur/fade to start early (at 20px) and finish before the threshold (120px)
+  const animatedFullScreenObjects = useAnimatedStyle(() => {
     const absX = Math.abs(translateX.value);
 
     const opacity = interpolate(
       absX,
       [0, 100],
-      [1, 0.3], // Dim the numbers to 30%
+      [1, 0.3], // Dim the soundscape to 30%
       Extrapolation.CLAMP
     );
 
@@ -165,22 +164,6 @@ export const TimerDial = ({
     return {
       opacity,
       transform: [{ scale }],
-      // Note: blurRadius is iOS only on standard <Text>.
-      // For Android/Universal, the opacity/scale combo creates the "receding" feel.
-    };
-  });
-
-  const animatedSoundsScapeStyle = useAnimatedStyle(() => {
-    const absX = Math.abs(translateX.value);
-
-    const opacity = interpolate(
-      absX,
-      [0, 100],
-      [1, 0.3], // Dim the soundscape to 30%
-      Extrapolation.CLAMP
-    );
-    return {
-      opacity,
     };
   });
 
@@ -298,7 +281,7 @@ export const TimerDial = ({
             adjustsFontSizeToFit
             style={[
               styles.largeTimerDisplay,
-              animatedTimerTextStyle, // 🟢 Added the focus style here
+              animatedFullScreenObjects, // 🟢 Added the focus style here
               {
                 fontSize: timerFontSize,
                 textAlign: "center",
@@ -312,7 +295,7 @@ export const TimerDial = ({
 
         {isFullScreen && (
           <Animated.View
-            style={[styles.soundscapeWrapper, animatedSoundsScapeStyle]}
+            style={[styles.soundscapeWrapper, animatedFullScreenObjects]}
           >
             <SoundscapeSelector
               activeSoundId={activeSoundId}
@@ -392,6 +375,8 @@ export const TimerDial = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
+      flex: 1,
+      width: "100%",
       justifyContent: "center",
       alignItems: "center",
       alignSelf: "center",
@@ -442,12 +427,6 @@ const createStyles = (theme: any) =>
       borderRadius: 1,
       opacity: 0.8,
     },
-    // barrierText: {
-    //   color: "lime",
-    //   marginTop: 8,
-    //   fontWeight: "900",
-    //   letterSpacing: 2,
-    // },
     horizontalBarrier: {
       position: "absolute",
       alignItems: "center",
