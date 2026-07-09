@@ -150,6 +150,36 @@ export default function TaskDetailScreen() {
     transform: [{ scale: withSpring(isFullScreen ? 1.1 : 1) }],
   }));
 
+  const sliderTranslateX = useSharedValue(0);
+  const SLIDER_WIDTH = 200; // Adjust based on your UI
+
+  const landscapeSliderGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      // 🟢 Restrict movement to positive X and within the slider track
+      sliderTranslateX.value = Math.max(
+        0,
+        Math.min(event.translationX, SLIDER_WIDTH - 44)
+      );
+    })
+    .onEnd((event) => {
+      if (sliderTranslateX.value > SLIDER_WIDTH * 0.8) {
+        // 🟢 Success!
+        if (canCompleteToday) {
+          runOnJS(handleTaskCompletion)();
+        } else {
+          // Maybe a "shake" or red color if locked
+          sliderTranslateX.value = withSpring(0);
+        }
+      } else {
+        // 🔴 Slide back if not far enough
+        sliderTranslateX.value = withSpring(0);
+      }
+    });
+
+  const animatedSliderHandleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: sliderTranslateX.value }],
+  }));
+
   // --- EFFECTS ---
   useEffect(() => {
     ScreenOrientation.getOrientationAsync().then((o) => setOrientation(o));
@@ -277,21 +307,30 @@ export default function TaskDetailScreen() {
                               variant="labelSmall"
                               style={styles.landscapeSliderText}
                             >
-                              DONE
+                              {canCompleteToday ? "DRAG TO COMPLETE" : "LOCKED"}
                             </Text>
                           </View>
-                          <View
-                            style={[
-                              styles.sliderHandle,
-                              { height: 44, width: 44 },
-                            ]}
-                          >
-                            <MaterialCommunityIcons
-                              name="check"
-                              size={24}
-                              color={theme.colors.onPrimary}
-                            />
-                          </View>
+                          <GestureDetector gesture={landscapeSliderGesture}>
+                            <Animated.View
+                              style={[
+                                styles.sliderHandle,
+                                animatedSliderHandleStyle,
+                                {
+                                  height: 44,
+                                  width: 44,
+                                  backgroundColor: canCompleteToday
+                                    ? theme.colors.primary
+                                    : "grey",
+                                },
+                              ]}
+                            >
+                              <MaterialCommunityIcons
+                                name={canCompleteToday ? "check" : "lock"}
+                                size={24}
+                                color={theme.colors.onPrimary}
+                              />
+                            </Animated.View>
+                          </GestureDetector>
                         </View>
                       </Surface>
                     </View>

@@ -1,21 +1,19 @@
-import { useState, useEffect } from "react";
-import { View, StyleSheet, Pressable, Dimensions } from "react-native";
-import { Text, Button, useTheme } from "react-native-paper";
-import Svg, { Circle } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient"; // 🟢 Pro visual
 import * as Haptics from "expo-haptics"; // 🟢 Pro tactile
+import { useEffect, useState } from "react";
+import { Dimensions, Pressable, StyleSheet, View } from "react-native";
+import { Button, Text, useTheme } from "react-native-paper";
+import Svg, { Circle } from "react-native-svg";
 // import { BlurView } from 'expo-blur';
+import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSelector";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-  interpolate,
   Extrapolation,
-  withRepeat,
-  withSequence,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
 
@@ -68,6 +66,8 @@ export const TimerDial = ({
   const shakeX = useSharedValue(0);
   const isReady = useSharedValue(false);
   const snapOffset = useSharedValue(0);
+
+  const [activeSoundId, setActiveSoundId] = useState<string>("mute");
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -167,6 +167,20 @@ export const TimerDial = ({
       transform: [{ scale }],
       // Note: blurRadius is iOS only on standard <Text>.
       // For Android/Universal, the opacity/scale combo creates the "receding" feel.
+    };
+  });
+
+  const animatedSoundsScapeStyle = useAnimatedStyle(() => {
+    const absX = Math.abs(translateX.value);
+
+    const opacity = interpolate(
+      absX,
+      [0, 100],
+      [1, 0.3], // Dim the soundscape to 30%
+      Extrapolation.CLAMP
+    );
+    return {
+      opacity,
     };
   });
 
@@ -288,13 +302,24 @@ export const TimerDial = ({
               {
                 fontSize: timerFontSize,
                 textAlign: "center",
-                paddingVertical: isFullScreen ? 10 : 0,
+                paddingVertical: 0,
               },
             ]}
           >
             {displayTime}
           </Animated.Text>
         </Pressable>
+
+        {isFullScreen && (
+          <Animated.View
+            style={[styles.soundscapeWrapper, animatedSoundsScapeStyle]}
+          >
+            <SoundscapeSelector
+              activeSoundId={activeSoundId}
+              onSelectSound={setActiveSoundId}
+            />
+          </Animated.View>
+        )}
 
         <GestureDetector gesture={panGesture}>
           <Animated.View
@@ -395,7 +420,7 @@ const createStyles = (theme: any) =>
       opacity: 0.9,
     },
     dialPlayButton: {
-      marginTop: 10,
+      // marginTop: 10,
       marginBottom: 20,
       borderRadius: 20,
       paddingHorizontal: 15,
@@ -480,6 +505,13 @@ const createStyles = (theme: any) =>
       width: 120,
       position: "absolute",
       right: 20,
+      alignItems: "center",
+    },
+    soundscapeWrapper: {
+      marginTop: -40,
+      marginBottom: -10,
+      paddingHorizontal: 20,
+      width: "100%",
       alignItems: "center",
     },
   });
