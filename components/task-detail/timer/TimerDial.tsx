@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics"; // 🟢 Pro tactile
 import { useEffect, useState } from "react";
-import { Dimensions, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Button, Text, useTheme } from "react-native-paper";
 import Svg, { Circle } from "react-native-svg";
 // import { BlurView } from 'expo-blur';
 import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSelector";
+import { Audio } from "expo-av";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
@@ -17,7 +18,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isToday = (date: Date) => {
   const today = new Date();
   // console.log(`today: ${today}, taskDate: ${date}`);
@@ -56,7 +56,8 @@ export const TimerDial = ({
   progress = 0,
 }: TimerDialProps) => {
   const theme = useTheme();
-  const styles = createStyles(theme);
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const styles = createStyles(theme, SCREEN_WIDTH);
   const [currentTime, setCurrentTime] = useState(new Date());
   const canComplete = isToday(taskDate);
 
@@ -68,6 +69,32 @@ export const TimerDial = ({
   const snapOffset = useSharedValue(0);
 
   const [activeSoundId, setActiveSoundId] = useState<string>("mute");
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  // Audio Logic
+  async function playSound(id: string) {
+    if (sound) await sound.unloadAsync();
+    const audioFiles: { [key: string]: any } = {
+      rain: require("@/assets/audio/rainfall-track.mp3"),
+      lofi: require("@/assets/audio/lofi-track.mp3"),
+      forest: require("@/assets/audio/forest-track.mp3"),
+      noise: require("@/assets/audio/wave-track.mp3"),
+      synth: require("@/assets/audio/piano.mp3"),
+    };
+    if (id === "mute" || !audioFiles[id]) return;
+    const { sound: newSound } = await Audio.Sound.createAsync(audioFiles[id], {
+      shouldPlay: true,
+      isLooping: true,
+    });
+    setSound(newSound);
+  }
+
+  useEffect(() => {
+    playSound(activeSoundId);
+    return () => {
+      if (sound) sound.unloadAsync();
+    };
+  }, [activeSoundId]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -119,6 +146,7 @@ export const TimerDial = ({
       }
     })
     .onEnd((event) => {
+      // handles full screen compeletion joystick button reset
       if (!isFullScreen) return;
 
       // 🟢 Trigger actions
@@ -372,7 +400,7 @@ export const TimerDial = ({
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, SCREEN_WIDTH: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
