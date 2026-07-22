@@ -1,28 +1,26 @@
-import React, { useEffect, useMemo, useState } from "react";
 import { TaskService } from "@/services/taskService";
 import { Task } from "@/types/database.type";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Platform,
-  Pressable,
-} from "react-native";
-import { useLocalSearchParams, Stack } from "expo-router";
-import {
-  Text,
-  IconButton,
-  useTheme,
-  Surface,
-  Portal,
-} from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as ScreenOrientation from "expo-screen-orientation";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Audio } from "expo-av";
-import { useWindowDimensions } from "react-native";
 import { isSameDay } from "date-fns";
+import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
+import { Stack, useLocalSearchParams } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import {
+  IconButton,
+  Portal,
+  Surface,
+  Text,
+  useTheme,
+} from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // GESTURE & ANIMATION ENGINE
 import {
@@ -31,22 +29,22 @@ import {
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
   runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from "react-native-reanimated";
 
-import { useTimer } from "@/hooks/useTimer";
-import { useAllowRotation } from "@/hooks/useAllowRotation";
+import { CustomTimerPicker } from "@/components/CustomTimerPicker";
 import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
+import { MilestoneTracker } from "@/components/task-detail/dashboard/MilestoneTracker";
 import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
 import { Timeline } from "@/components/task-detail/dashboard/Timeline";
-import { MilestoneTracker } from "@/components/task-detail/dashboard/MilestoneTracker";
-import { TimerDial } from "@/components/task-detail/timer/TimerDial";
-import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
 import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSelector";
-import { CustomTimerPicker } from "@/components/CustomTimerPicker";
+import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
+import { TimerDial } from "@/components/task-detail/timer/TimerDial";
+import { useAllowRotation } from "@/hooks/useAllowRotation";
+import { useTimer } from "@/hooks/useTimer";
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -107,6 +105,8 @@ export default function TaskDetailScreen() {
   const styles = createStyles(theme, windowWidth);
   const insets = useSafeAreaInsets();
   const horizontalPadding = Math.max(insets.left, insets.right) + 20;
+
+  const [defaultTime, setDefaultTime] = useState(25 * 60); // Default to 25 * 60s = 25 minutes
 
   // --- STATES ---
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -275,7 +275,7 @@ export default function TaskDetailScreen() {
                     taskDate={canCompleteToday ? new Date() : new Date(0)}
                     progress={progress}
                     onEditRequest={() => setPickerVisible(true)}
-                    onResetRequest={() => reset(25)}
+                    onResetRequest={() => reset(defaultTime)}
                     isFullScreen={isFullScreen}
                     size={
                       isFullScreen ? windowHeight * 0.95 : windowHeight * 0.8
@@ -289,7 +289,10 @@ export default function TaskDetailScreen() {
                     <TimeAdjusters
                       presets={[1, 6, 12]}
                       onAdjust={adjustTime}
-                      onSelectPreset={reset}
+                      onSelectPreset={(minutes) => {
+                        setDefaultTime(minutes);
+                        reset(minutes);
+                      }}
                     />
                     <SoundscapeSelector
                       activeSoundId={activeSoundId}
@@ -421,14 +424,17 @@ export default function TaskDetailScreen() {
                       taskDate={canCompleteToday ? new Date() : new Date(0)}
                       progress={progress}
                       onEditRequest={() => setPickerVisible(true)}
-                      onResetRequest={() => reset(25)}
+                      onResetRequest={() => reset(defaultTime)}
                       size={260}
                       isFullScreen={isFullScreen}
                     />
                     <TimeAdjusters
                       presets={[15, 25, 45]}
                       onAdjust={adjustTime}
-                      onSelectPreset={reset}
+                      onSelectPreset={(minutes) => {
+                        setDefaultTime(minutes);
+                        reset(minutes);
+                      }}
                     />
                   </View>
                   <SoundscapeSelector

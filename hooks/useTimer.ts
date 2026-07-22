@@ -1,5 +1,5 @@
 import * as KeepAwake from "expo-keep-awake";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const useTimer = (initialMinutes: number = 25) => {
   const [secondsLeft, setSecondsLeft] = useState(initialMinutes * 60);
