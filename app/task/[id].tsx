@@ -50,6 +50,12 @@ export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [task, setTask] = useState<Task | null>(null);
   useAllowRotation();
+  const [taskCompleted, setTaskCompleted] = useState(false);
+  const onCompleteTask = () => {
+    console.log("completed", { id });
+    setTaskCompleted(!taskCompleted);
+    //handleTaskCompletion
+  };
 
   useEffect(() => {
     if (id) {
@@ -130,6 +136,14 @@ export default function TaskDetailScreen() {
     adjustTime,
   } = useTimer(25);
 
+  // logic states for footer slider
+  const [trackWidth, setTrackWidth] = useState(0);
+  const sliderX = useSharedValue(0);
+  const HANDLE_SIZE = 44; // Size of the slider handle
+
+  const maxTranslateX = Math.max(0, trackWidth - HANDLE_SIZE);
+  const SWIPE_THRESHOLD = maxTranslateX * 0.85; // 85% drag triggers completion
+
   const isLandscape = windowWidth > windowHeight;
 
   // 🟢 PINCH GESTURE: Zoom to Fullscreen
@@ -153,31 +167,60 @@ export default function TaskDetailScreen() {
   const sliderTranslateX = useSharedValue(0);
   const SLIDER_WIDTH = 200; // Adjust based on your UI
 
+  // const landscapeSliderGesture = Gesture.Pan()
+  //   .onUpdate((event) => {
+  //     // 🟢 Restrict movement to positive X and within the slider track
+  //     sliderTranslateX.value = Math.max(
+  //       0,
+  //       Math.min(event.translationX, SLIDER_WIDTH - 44)
+  //     );
+  //   })
+  //   .onEnd((event) => {
+  //     if (sliderTranslateX.value > SLIDER_WIDTH * 0.8) {
+  //       // 🟢 Success!
+  //       if (canCompleteToday) {
+  //         runOnJS(handleTaskCompletion)();
+  //       } else {
+  //         // Maybe a "shake" or red color if locked
+  //         sliderTranslateX.value = withSpring(0);
+  //       }
+  //     } else {
+  //       // 🔴 Slide back if not far enough
+  //       sliderTranslateX.value = withSpring(0);
+  //     }
+  //   });
+
+  // const animatedSliderHandleStyle = useAnimatedStyle(() => ({
+  //   transform: [{ translateX: sliderTranslateX.value }],
+  // }));
+
   const landscapeSliderGesture = Gesture.Pan()
     .onUpdate((event) => {
-      // 🟢 Restrict movement to positive X and within the slider track
-      sliderTranslateX.value = Math.max(
-        0,
-        Math.min(event.translationX, SLIDER_WIDTH - 44)
-      );
+      if (!canCompleteToday) return;
+      // Clamp movement between 0 and maxTranslateX
+      sliderX.value = Math.min(Math.max(0, event.translationX), maxTranslateX);
     })
-    .onEnd((event) => {
-      if (sliderTranslateX.value > SLIDER_WIDTH * 0.8) {
-        // 🟢 Success!
-        if (canCompleteToday) {
-          runOnJS(handleTaskCompletion)();
-        } else {
-          // Maybe a "shake" or red color if locked
-          sliderTranslateX.value = withSpring(0);
+    .onEnd(() => {
+      if (!canCompleteToday) return;
+
+      if (sliderX.value >= SWIPE_THRESHOLD) {
+        // Snap handle to the end and execute complete function on main thread
+        sliderX.value = withSpring(maxTranslateX);
+        runOnJS(Haptics.notificationAsync)(
+          Haptics.NotificationFeedbackType.Success
+        );
+        if (onCompleteTask) {
+          runOnJS(onCompleteTask)();
         }
       } else {
-        // 🔴 Slide back if not far enough
-        sliderTranslateX.value = withSpring(0);
+        // Spring back if let go before threshold
+        sliderX.value = withSpring(0);
       }
     });
 
+  // 4. Handle animation style
   const animatedSliderHandleStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: sliderTranslateX.value }],
+    transform: [{ translateX: sliderX.value }],
   }));
 
   // --- EFFECTS ---
@@ -304,13 +347,19 @@ export default function TaskDetailScreen() {
                         style={styles.landscapeSliderTrack}
                         elevation={2}
                       >
-                        <View style={styles.sliderInner}>
+                        <View
+                          style={styles.sliderInner}
+                          onLayout={(e) =>
+                            setTrackWidth(e.nativeEvent.layout.width)
+                          }
+                        >
                           <View style={styles.sliderBackgroundTextContainer}>
                             <Text
                               variant="labelSmall"
                               style={styles.landscapeSliderText}
                             >
-                              {canCompleteToday ? "DRAG TO COMPLETE" : "LOCKED"}
+                              {/* {canCompleteToday ? "DRAG TO COMPLETE" : "LOCKED"} */}
+                              {!taskCompleted ? "DRAG TO COMPLETE" : "LOCKED"}
                             </Text>
                           </View>
                           <GestureDetector gesture={landscapeSliderGesture}>
@@ -319,16 +368,18 @@ export default function TaskDetailScreen() {
                                 styles.sliderHandle,
                                 animatedSliderHandleStyle,
                                 {
-                                  height: 44,
-                                  width: 44,
-                                  backgroundColor: canCompleteToday
+                                  height: HANDLE_SIZE,
+                                  width: HANDLE_SIZE,
+                                  // backgroundColor: canCompleteToday
+                                  backgroundColor: !taskCompleted
                                     ? theme.colors.primary
                                     : "grey",
                                 },
                               ]}
                             >
                               <MaterialCommunityIcons
-                                name={canCompleteToday ? "check" : "lock"}
+                                // name={canCompleteToday ? "check" : "lock"}
+                                name={!taskCompleted ? "check" : "lock"}
                                 size={24}
                                 color={theme.colors.onPrimary}
                               />
