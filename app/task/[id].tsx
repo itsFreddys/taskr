@@ -1,11 +1,8 @@
-import { TaskService } from "@/services/taskService";
-import { Task } from "@/types/database.type";
+// import { Task } from "@/types/database.type";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { isSameDay } from "date-fns";
-import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -45,74 +42,14 @@ import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
 import { TimerDial } from "@/components/task-detail/timer/TimerDial";
 import { useAllowRotation } from "@/hooks/useAllowRotation";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { useTaskDetail } from "@/hooks/useTaskDetails";
 import { useTimer } from "@/hooks/useTimer";
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [task, setTask] = useState<Task | null>(null);
   useAllowRotation();
-  const [taskCompleted, setTaskCompleted] = useState(false);
-  const onCompleteTask = () => {
-    // console.log("completed", { id });
-    handleTaskCompletion();
-  };
-  const isDone =
-    taskCompleted ||
-    (task?.lastCompletedDate &&
-      isSameDay(new Date(task.lastCompletedDate), new Date()));
 
   const { activeSoundId, setActiveSoundId } = useAudioPlayer("mute");
-
-  useEffect(() => {
-    if (id) {
-      TaskService.getTaskById(id)
-        .then(setTask)
-        .catch((err: Error) => console.error("Load Task Error:", err));
-    }
-  }, [id]);
-
-  const canCompleteToday = useMemo(() => {
-    if (!task) return false;
-
-    const now = new Date();
-    const dayIndex = now.getDay().toString();
-
-    // Exception: Manually added to today
-    const isAdHocMatch =
-      task.adHocDate && isSameDay(new Date(task.adHocDate), now);
-
-    // Rule: Matches standard schedule
-    const isScheduledMatch =
-      task.type === "one-time"
-        ? task.startDate && isSameDay(new Date(task.startDate), now)
-        : task.daysOfWeek?.includes(dayIndex);
-
-    // 🔵 Check if already completed today to prevent double-dipping
-    const isAlreadyDone =
-      task.lastCompletedDate &&
-      isSameDay(new Date(task.lastCompletedDate), now);
-
-    return (isAdHocMatch || isScheduledMatch) && !isAlreadyDone;
-  }, [task]);
-
-  const handleTaskCompletion = async () => {
-    if (!task) return;
-    try {
-      // Instead of just setting "completed: true", we use the streak logic
-      // from your handleToggleTask function
-      await TaskService.completeTask(task);
-
-      // Optional: Refresh local task state to show "LOCKED" after completion
-      const updated = await TaskService.getTaskById(id!);
-      // console.log("competed", { id });
-      setTask(updated);
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTaskCompleted(true);
-    } catch (err) {
-      console.error("Completion failed", err);
-    }
-  };
 
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const theme = useTheme();
@@ -141,6 +78,9 @@ export default function TaskDetailScreen() {
     reset,
     adjustTime,
   } = useTimer(25);
+
+  const { task, canCompleteToday, isDone, handleTaskCompletion } =
+    useTaskDetail(id);
 
   const isLandscape = windowWidth > windowHeight;
 
@@ -226,7 +166,7 @@ export default function TaskDetailScreen() {
                     secondsRemaining={secondsLeft}
                     onToggle={toggle}
                     onCompleteTask={() => {
-                      handleTaskCompletion;
+                      handleTaskCompletion();
                       console.log("completed via timerdial", { id });
                     }}
                     taskDate={canCompleteToday ? new Date() : new Date(0)}
@@ -261,7 +201,12 @@ export default function TaskDetailScreen() {
                     <LandscapeCompletionSlider
                       isDone={!!isDone}
                       canCompleteToday={!!canCompleteToday}
-                      onCompleteTask={onCompleteTask}
+                      onCompleteTask={() => {
+                        handleTaskCompletion();
+                        console.log("completed via landscapecomplete slider", {
+                          id,
+                        });
+                      }}
                     />
                   </View>
                   // </View>
@@ -345,7 +290,7 @@ export default function TaskDetailScreen() {
                       secondsRemaining={secondsLeft}
                       onToggle={toggle}
                       onCompleteTask={() => {
-                        handleTaskCompletion;
+                        handleTaskCompletion();
                         console.log("completed via portait mode", { id });
                       }}
                       taskDate={canCompleteToday ? new Date() : new Date(0)}
