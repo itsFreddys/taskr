@@ -1,45 +1,14 @@
-// import { Task } from "@/types/database.type";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import {
-  IconButton,
-  Portal,
-  Surface,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { StyleSheet, useWindowDimensions } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Portal, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// GESTURE & ANIMATION ENGINE
-import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-} from "react-native-gesture-handler";
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
-
 import { CustomTimerPicker } from "@/components/CustomTimerPicker";
-import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
-import { MilestoneTracker } from "@/components/task-detail/dashboard/MilestoneTracker";
-import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
-import { Timeline } from "@/components/task-detail/dashboard/Timeline";
-import { LandscapeCompletionSlider } from "@/components/task-detail/timer/LandscapeCompletionSlider";
-import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSelector";
-import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
-import { TimerDial } from "@/components/task-detail/timer/TimerDial";
+import { LandscapeTaskView } from "@/components/task-detail/views/LandscapeTaskView";
+import { PortraitTaskView } from "@/components/task-detail/views/PortraitTaskView";
+
 import { useAllowRotation } from "@/hooks/useAllowRotation";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useTaskDetail } from "@/hooks/useTaskDetails";
@@ -50,25 +19,17 @@ export default function TaskDetailScreen() {
   useAllowRotation();
 
   const { activeSoundId, setActiveSoundId } = useAudioPlayer("mute");
-
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const theme = useTheme();
   const styles = createStyles(theme, windowWidth);
   const insets = useSafeAreaInsets();
   const horizontalPadding = Math.max(insets.left, insets.right) + 20;
 
-  const [defaultTime, setDefaultTime] = useState(25 * 60); // Default to 25 * 60s = 25 minutes
-
-  // --- STATES ---
-  const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
-    ScreenOrientation.Orientation.PORTRAIT_UP
-  );
+  const [, setDefaultTime] = useState(25 * 60);
   const [activePage, setActivePage] = useState(0);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // --- ANIMATION VALUES ---
-  const scale = useSharedValue(1);
   const {
     displayTime,
     isActive,
@@ -84,33 +45,6 @@ export default function TaskDetailScreen() {
 
   const isLandscape = windowWidth > windowHeight;
 
-  // 🟢 PINCH GESTURE: Zoom to Fullscreen
-  const pinchGesture = Gesture.Pinch()
-    .onUpdate((event) => {
-      scale.value = event.scale;
-    })
-    .onEnd((event) => {
-      if (event.scale > 1.2) {
-        runOnJS(setIsFullScreen)(true);
-      } else if (event.scale < 0.8) {
-        runOnJS(setIsFullScreen)(false);
-      }
-      scale.value = withSpring(1);
-    });
-
-  const animatedDialStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(isFullScreen ? 1.1 : 1) }],
-  }));
-
-  // --- EFFECTS ---
-  useEffect(() => {
-    ScreenOrientation.getOrientationAsync().then((o) => setOrientation(o));
-    const sub = ScreenOrientation.addOrientationChangeListener((evt) =>
-      setOrientation(evt.orientationInfo.orientation)
-    );
-    return () => ScreenOrientation.removeOrientationChangeListener(sub);
-  }, []);
-
   useEffect(() => {
     if (!isLandscape) setIsFullScreen(false);
   }, [isLandscape]);
@@ -118,248 +52,50 @@ export default function TaskDetailScreen() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {isLandscape ? (
-        /* 🟢 LANDSCAPE MODE (Inlined for reactive state) */
-        <View
-          style={[
-            styles.landscapeContainer,
-            { paddingHorizontal: horizontalPadding },
-          ]}
-        >
-          <Stack.Screen options={{ headerShown: false }} />
-
-          {/* Wrapper to handle internal padding so the bar stays at the true screen edge */}
-          <View
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingLeft: horizontalPadding,
-              paddingRight: horizontalPadding,
-              // paddingLeft: insets.left + 60,
-              // paddingRight: insets.right + 20,
-            }}
-          >
-            <GestureDetector gesture={pinchGesture}>
-              <Animated.View
-                style={[
-                  styles.landscapeContent,
-                  { gap: isFullScreen ? 0 : 32 },
-                ]}
-              >
-                {/* LEFT: TIMER DIAL */}
-                <Animated.View
-                  style={[
-                    animatedDialStyle,
-                    {
-                      flex: 1,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      // 🔵 SUGGESTION: Remove any fixed margins when in full screen to ensure true centering
-                      marginLeft: isFullScreen ? 0 : 0,
-                    },
-                  ]}
-                >
-                  <TimerDial
-                    displayTime={displayTime}
-                    isPlaying={isActive}
-                    secondsRemaining={secondsLeft}
-                    onToggle={toggle}
-                    onCompleteTask={() => {
-                      handleTaskCompletion();
-                      console.log("completed via timerdial", { id });
-                    }}
-                    taskDate={canCompleteToday ? new Date() : new Date(0)}
-                    progress={progress}
-                    onEditRequest={() => setPickerVisible(true)}
-                    onResetRequest={() => reset(defaultTime)}
-                    isFullScreen={isFullScreen}
-                    size={
-                      isFullScreen ? windowHeight * 0.95 : windowHeight * 0.8
-                    }
-                  />
-                </Animated.View>
-
-                {/* RIGHT: COMMAND SIDEBAR */}
-                {!isFullScreen && (
-                  <View style={styles.landscapeSidebar}>
-                    <TimeAdjusters
-                      presets={[1, 6, 12]}
-                      onAdjust={adjustTime}
-                      onSelectPreset={(minutes) => {
-                        setDefaultTime(minutes);
-                        reset(minutes);
-                      }}
-                    />
-                    <SoundscapeSelector
-                      activeSoundId={activeSoundId}
-                      onSelectSound={setActiveSoundId}
-                    />
-                    {/* slider to complete */}
-                    {/* 🟢 1. COMPLETED STATE: Hide slider completely, show direct completed banner */}
-                    {/* <View style={styles.landscapeSidebar}> */}
-                    <LandscapeCompletionSlider
-                      isDone={!!isDone}
-                      canCompleteToday={!!canCompleteToday}
-                      onCompleteTask={() => {
-                        handleTaskCompletion();
-                        console.log("completed via landscapecomplete slider", {
-                          id,
-                        });
-                      }}
-                    />
-                  </View>
-                  // </View>
-                )}
-              </Animated.View>
-            </GestureDetector>
-          </View>
-
-          {/* 🟢 FIXED PROGRESS BAR: Outside the padded wrapper and reactive */}
-          {isFullScreen && (
-            <View style={styles.screenBottomProgressContainer}>
-              <View
-                style={[
-                  styles.fullScreenProgressBar,
-                  {
-                    width: `95%`,
-                    backgroundColor: theme.colors.primaryContainer,
-                    opacity: 0.3,
-                    position: "absolute",
-                    left: "2.5%",
-                  },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.fullScreenProgressBar,
-                  {
-                    width: `${(1 - progress) * 95}%`,
-                    backgroundColor: theme.colors.primary,
-                    // left: "2.5%",
-                  },
-                ]}
-              />
-            </View>
-          )}
-        </View>
+        <LandscapeTaskView
+          styles={styles}
+          horizontalPadding={horizontalPadding}
+          windowHeight={windowHeight}
+          isFullScreen={isFullScreen}
+          setIsFullScreen={setIsFullScreen}
+          displayTime={displayTime}
+          isActive={isActive}
+          secondsLeft={secondsLeft}
+          toggle={toggle}
+          progress={progress}
+          reset={reset}
+          adjustTime={adjustTime}
+          setDefaultTime={setDefaultTime}
+          activeSoundId={activeSoundId}
+          setActiveSoundId={setActiveSoundId}
+          isDone={isDone}
+          canCompleteToday={canCompleteToday}
+          handleTaskCompletion={handleTaskCompletion}
+          setPickerVisible={setPickerVisible}
+        />
       ) : (
-        /* 🟢 PORTRAIT MODE */
-        <View style={styles.container}>
-          <Stack.Screen
-            options={{ headerShown: true, title: "Task Details" }}
-          />
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.paddedSection}>
-              <View style={styles.actionRow}>
-                <IconButton icon="pencil-outline" />
-              </View>
-            </View>
-            <View style={styles.pagerWrapper}>
-              <ScrollView
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onScroll={(e) =>
-                  setActivePage(
-                    Math.round(e.nativeEvent.contentOffset.x / windowWidth)
-                  )
-                }
-                scrollEventThrottle={16}
-              >
-                <View style={styles.slide}>
-                  <HeroHeader emoji="🚀" title="Task Title" category="Focus" />
-                  <StatsOverview
-                    currentStreak={12}
-                    totalCompletions={148}
-                    bestStreak={24}
-                  />
-                  <Timeline
-                    history={[true, true, true, true, true, false, true]}
-                  />
-                  <MilestoneTracker currentStreak={12} nextMilestoneGoal={15} />
-                </View>
-                <View style={styles.slide}>
-                  <View style={styles.timerSlideWrapper}>
-                    <TimerDial
-                      displayTime={displayTime}
-                      isPlaying={isActive}
-                      secondsRemaining={secondsLeft}
-                      onToggle={toggle}
-                      onCompleteTask={() => {
-                        handleTaskCompletion();
-                        console.log("completed via portait mode", { id });
-                      }}
-                      taskDate={canCompleteToday ? new Date() : new Date(0)}
-                      progress={progress}
-                      onEditRequest={() => setPickerVisible(true)}
-                      onResetRequest={() => reset(defaultTime)}
-                      size={260}
-                      isFullScreen={isFullScreen}
-                    />
-                    <TimeAdjusters
-                      presets={[15, 25, 45]}
-                      onAdjust={adjustTime}
-                      onSelectPreset={(minutes) => {
-                        setDefaultTime(minutes);
-                        reset(minutes);
-                      }}
-                    />
-                  </View>
-                  <SoundscapeSelector
-                    activeSoundId={activeSoundId}
-                    onSelectSound={setActiveSoundId}
-                  />
-                </View>
-              </ScrollView>
-              <View style={styles.dotRow}>
-                <View
-                  style={[styles.dot, activePage === 0 && styles.activeDot]}
-                />
-                <View
-                  style={[styles.dot, activePage === 1 && styles.activeDot]}
-                />
-              </View>
-            </View>
-            <View style={styles.paddedSection}>
-              <View style={styles.sectionHeader}>
-                <Text variant="titleMedium" style={{ fontWeight: "bold" }}>
-                  Notes
-                </Text>
-                <IconButton icon="plus" size={20} />
-              </View>
-              <Surface style={styles.notesSurface} elevation={0}>
-                <Text variant="bodyMedium" style={styles.notesPlaceholder}>
-                  Tap to add notes...
-                </Text>
-              </Surface>
-            </View>
-          </ScrollView>
-          <View style={styles.floatingFooter}>
-            <Surface style={styles.sliderTrack} elevation={2}>
-              <View style={styles.sliderInner}>
-                <View style={styles.sliderBackgroundTextContainer}>
-                  <Text variant="labelLarge" style={styles.sliderText}>
-                    Swipe to Complete
-                  </Text>
-                </View>
-                <View style={styles.sliderHandle}>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={28}
-                    color={theme.colors.onPrimary}
-                  />
-                </View>
-              </View>
-            </Surface>
-          </View>
-        </View>
+        <PortraitTaskView
+          styles={styles}
+          windowWidth={windowWidth}
+          activePage={activePage}
+          setActivePage={setActivePage}
+          displayTime={displayTime}
+          isActive={isActive}
+          secondsLeft={secondsLeft}
+          toggle={toggle}
+          progress={progress}
+          reset={reset}
+          adjustTime={adjustTime}
+          setDefaultTime={setDefaultTime}
+          activeSoundId={activeSoundId}
+          setActiveSoundId={setActiveSoundId}
+          canCompleteToday={canCompleteToday}
+          handleTaskCompletion={handleTaskCompletion}
+          setPickerVisible={setPickerVisible}
+          isFullScreen={isFullScreen}
+        />
       )}
 
-      {/* SHARED PORTAL */}
       <Portal>
         <CustomTimerPicker
           visible={pickerVisible}

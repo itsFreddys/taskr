@@ -1,6 +1,6 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
-import { Text, IconButton, Surface, useTheme } from "react-native-paper";
+import { StyleSheet, View } from "react-native";
+import { IconButton, Surface, Text, useTheme } from "react-native-paper";
 
 interface TimeAdjustersProps {
   onAdjust: (minutes: number) => void;
@@ -27,10 +27,7 @@ export const TimeAdjusters = ({
       <View style={styles.presetChips}>
         {presets.map((minutes) => (
           <Surface key={minutes} style={styles.chip} elevation={1}>
-            <Text
-              variant="labelSmall"
-              onPress={() => onSelectPreset(minutes * 60)}
-            >
+            <Text variant="labelSmall" onPress={() => onSelectPreset(minutes)}>
               {minutes}m
             </Text>
           </Surface>

@@ -1,26 +1,31 @@
 import * as KeepAwake from "expo-keep-awake";
 import { useEffect, useRef, useState } from "react";
 
-export const useTimer = (initialMinutes: number = 25) => {
-  const [secondsLeft, setSecondsLeft] = useState(initialMinutes * 60);
+const DEFAULT_TIMER_MINUTES = 25;
+
+export const useTimer = (initialMinutes: number = DEFAULT_TIMER_MINUTES) => {
+  // Convert initial minutes to seconds once
+  const initialSeconds = initialMinutes * 60;
+
+  const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
+  const [totalTime, setTotalTime] = useState(initialSeconds);
   const [isActive, setIsActive] = useState(false);
-  const [totalTime, setTotalTime] = useState(initialMinutes * 60);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 🟢 Screen Keep-Awake Logic
   useEffect(() => {
     if (isActive && secondsLeft > 0) {
-      KeepAwake.activateKeepAwakeAsync(); // 🟢 Force screen on
-      // ... interval logic
+      KeepAwake.activateKeepAwakeAsync();
     } else {
-      KeepAwake.activateKeepAwakeAsync(); // 🔴 Allow sleep
-      // ... clear interval
+      KeepAwake.deactivateKeepAwake(); // 🟢 Fixed: Deactivate when paused/stopped
     }
 
     return () => {
-      KeepAwake.deactivateKeepAwake(); // 🔴 Cleanup on unmount
+      KeepAwake.deactivateKeepAwake();
     };
   }, [isActive, secondsLeft]);
 
+  // 🟢 Countdown Interval
   useEffect(() => {
     if (isActive && secondsLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -36,26 +41,40 @@ export const useTimer = (initialMinutes: number = 25) => {
     };
   }, [isActive, secondsLeft]);
 
-  // Actions
+  // --- ACTIONS ---
   const toggle = () => setIsActive(!isActive);
 
-  const reset = (seconds: number) => {
+  // 🟢 FIXED: Takes minutes (optional), converts correctly to seconds
+  const reset = (minutes?: number) => {
     setIsActive(false);
-    setSecondsLeft(seconds);
-    setTotalTime(seconds);
+
+    // If minutes passed: minutes * 60. Otherwise: initialMinutes * 60
+    const targetSeconds =
+      minutes !== undefined ? minutes * 60 : initialMinutes * 60;
+
+    console.log(
+      "minutes:",
+      minutes,
+      "targetSeconds:",
+      targetSeconds,
+      "initialMinutes:",
+      initialMinutes
+    );
+    setSecondsLeft(targetSeconds);
+    setTotalTime(targetSeconds);
   };
 
-  const adjustTime = (amount: number) => {
+  // 🟢 FIXED: Adjusts time in minutes (or seconds if desired)
+  const adjustTime = (amountInMinutes: number) => {
     setSecondsLeft((prev) => {
-      const next = prev + amount * 10;
+      const next = prev + amountInMinutes * 60;
       const final = next > 0 ? next : 0;
-      // Update totalTime if we are increasing the cap
       if (final > totalTime) setTotalTime(final);
       return final;
     });
   };
 
-  // Helpers
+  // --- HELPERS ---
   const formatTime = () => {
     const mins = Math.floor(secondsLeft / 60);
     const secs = secondsLeft % 60;
