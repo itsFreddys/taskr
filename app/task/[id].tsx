@@ -40,6 +40,7 @@ import { HeroHeader } from "@/components/task-detail/dashboard/HeroHeader";
 import { MilestoneTracker } from "@/components/task-detail/dashboard/MilestoneTracker";
 import { StatsOverview } from "@/components/task-detail/dashboard/StatsOverview";
 import { Timeline } from "@/components/task-detail/dashboard/Timeline";
+import { LandscapeCompletionSlider } from "@/components/task-detail/timer/LandscapeCompletionSlider";
 import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSelector";
 import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
 import { TimerDial } from "@/components/task-detail/timer/TimerDial";
@@ -141,14 +142,6 @@ export default function TaskDetailScreen() {
     adjustTime,
   } = useTimer(25);
 
-  // logic states for footer slider
-  const [trackWidth, setTrackWidth] = useState(0);
-  const sliderX = useSharedValue(0);
-  const HANDLE_SIZE = 44; // Size of the slider handle
-
-  const maxTranslateX = Math.max(0, trackWidth - HANDLE_SIZE);
-  const SWIPE_THRESHOLD = maxTranslateX * 0.85; // 85% drag triggers completion
-
   const isLandscape = windowWidth > windowHeight;
 
   // 🟢 PINCH GESTURE: Zoom to Fullscreen
@@ -167,36 +160,6 @@ export default function TaskDetailScreen() {
 
   const animatedDialStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(isFullScreen ? 1.1 : 1) }],
-  }));
-
-  const landscapeSliderGesture = Gesture.Pan()
-    .onUpdate((event) => {
-      if (!canCompleteToday || taskCompleted) return;
-      // Clamp movement between 0 and maxTranslateX
-      sliderX.value = Math.min(Math.max(0, event.translationX), maxTranslateX);
-    })
-    .onEnd(() => {
-      if (!canCompleteToday || taskCompleted) return;
-
-      if (sliderX.value >= SWIPE_THRESHOLD) {
-        // Snap handle to the end and execute complete function on main thread
-        sliderX.value = withSpring(maxTranslateX);
-        runOnJS(Haptics.notificationAsync)(
-          Haptics.NotificationFeedbackType.Success
-        );
-        if (onCompleteTask) {
-          runOnJS(onCompleteTask)();
-          console.log("completed via landscape slider", { id });
-        }
-      } else {
-        // Spring back if let go before threshold
-        sliderX.value = withSpring(0);
-      }
-    });
-
-  // 4. Handle animation style
-  const animatedSliderHandleStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: sliderX.value }],
   }));
 
   // --- EFFECTS ---
@@ -319,108 +282,14 @@ export default function TaskDetailScreen() {
                     />
                     {/* slider to complete */}
                     {/* 🟢 1. COMPLETED STATE: Hide slider completely, show direct completed banner */}
-                    {isDone ? (
-                      <View style={styles.landscapeFooterWrapper}>
-                        <Surface
-                          style={[
-                            styles.landscapeSliderTrack,
-                            {
-                              backgroundColor: theme.colors.primaryContainer,
-                              justifyContent: "center",
-                              alignItems: "center",
-                            },
-                          ]}
-                          elevation={1}
-                        >
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <MaterialCommunityIcons
-                              name="check-circle"
-                              size={22}
-                              color={theme.colors.primary}
-                            />
-                            <Text
-                              variant="labelMedium"
-                              style={{
-                                color: theme.colors.primary,
-                                fontWeight: "bold",
-                                letterSpacing: 1,
-                              }}
-                            >
-                              COMPLETED
-                            </Text>
-                          </View>
-                        </Surface>
-                      </View>
-                    ) : (
-                      /* 🟢 2. UNCOMPLETED STATES: Render Slider (Active vs Locked) */
-                      <View style={styles.landscapeFooterWrapper}>
-                        <Surface
-                          style={[
-                            styles.landscapeSliderTrack,
-                            !canCompleteToday && { opacity: 0.6 }, // Dim slightly if locked
-                          ]}
-                          elevation={2}
-                        >
-                          <View
-                            style={styles.sliderInner}
-                            onLayout={(e) =>
-                              setTrackWidth(e.nativeEvent.layout.width)
-                            }
-                          >
-                            <View style={styles.sliderBackgroundTextContainer}>
-                              <Text
-                                variant="labelSmall"
-                                style={[
-                                  styles.landscapeSliderText,
-                                  !canCompleteToday && {
-                                    color: theme.colors.outline,
-                                  },
-                                ]}
-                              >
-                                {canCompleteToday
-                                  ? "DRAG TO COMPLETE"
-                                  : "LOCKED FOR TODAY"}
-                              </Text>
-                            </View>
-
-                            <GestureDetector gesture={landscapeSliderGesture}>
-                              <Animated.View
-                                style={[
-                                  styles.sliderHandle,
-                                  animatedSliderHandleStyle,
-                                  {
-                                    height: HANDLE_SIZE,
-                                    width: HANDLE_SIZE,
-                                    backgroundColor: canCompleteToday
-                                      ? theme.colors.primary
-                                      : theme.colors.surfaceVariant,
-                                  },
-                                ]}
-                              >
-                                <MaterialCommunityIcons
-                                  name={
-                                    canCompleteToday ? "chevron-right" : "lock"
-                                  }
-                                  size={24}
-                                  color={
-                                    canCompleteToday
-                                      ? theme.colors.onPrimary
-                                      : theme.colors.onSurfaceVariant
-                                  }
-                                />
-                              </Animated.View>
-                            </GestureDetector>
-                          </View>
-                        </Surface>
-                      </View>
-                    )}
+                    {/* <View style={styles.landscapeSidebar}> */}
+                    <LandscapeCompletionSlider
+                      isDone={!!isDone}
+                      canCompleteToday={!!canCompleteToday}
+                      onCompleteTask={onCompleteTask}
+                    />
                   </View>
+                  // </View>
                 )}
               </Animated.View>
             </GestureDetector>
