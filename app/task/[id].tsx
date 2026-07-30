@@ -2,7 +2,6 @@ import { TaskService } from "@/services/taskService";
 import { Task } from "@/types/database.type";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isSameDay } from "date-fns";
-import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -45,6 +44,7 @@ import { SoundscapeSelector } from "@/components/task-detail/timer/SoundScapeSel
 import { TimeAdjusters } from "@/components/task-detail/timer/TimerAdjusters";
 import { TimerDial } from "@/components/task-detail/timer/TimerDial";
 import { useAllowRotation } from "@/hooks/useAllowRotation";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useTimer } from "@/hooks/useTimer";
 
 export default function TaskDetailScreen() {
@@ -60,6 +60,8 @@ export default function TaskDetailScreen() {
     taskCompleted ||
     (task?.lastCompletedDate &&
       isSameDay(new Date(task.lastCompletedDate), new Date()));
+
+  const { activeSoundId, setActiveSoundId } = useAudioPlayer("mute");
 
   useEffect(() => {
     if (id) {
@@ -121,12 +123,10 @@ export default function TaskDetailScreen() {
   const [defaultTime, setDefaultTime] = useState(25 * 60); // Default to 25 * 60s = 25 minutes
 
   // --- STATES ---
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
     ScreenOrientation.Orientation.PORTRAIT_UP
   );
   const [activePage, setActivePage] = useState(0);
-  const [activeSoundId, setActiveSoundId] = useState<string>("mute");
   const [pickerVisible, setPickerVisible] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
@@ -174,31 +174,6 @@ export default function TaskDetailScreen() {
   useEffect(() => {
     if (!isLandscape) setIsFullScreen(false);
   }, [isLandscape]);
-
-  // Audio Logic
-  async function playSound(id: string) {
-    if (sound) await sound.unloadAsync();
-    const audioFiles: { [key: string]: any } = {
-      rain: require("@/assets/audio/rainfall-track.mp3"),
-      lofi: require("@/assets/audio/lofi-track.mp3"),
-      forest: require("@/assets/audio/forest-track.mp3"),
-      noise: require("@/assets/audio/wave-track.mp3"),
-      synth: require("@/assets/audio/piano.mp3"),
-    };
-    if (id === "mute" || !audioFiles[id]) return;
-    const { sound: newSound } = await Audio.Sound.createAsync(audioFiles[id], {
-      shouldPlay: true,
-      isLooping: true,
-    });
-    setSound(newSound);
-  }
-
-  useEffect(() => {
-    playSound(activeSoundId);
-    return () => {
-      if (sound) sound.unloadAsync();
-    };
-  }, [activeSoundId]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
